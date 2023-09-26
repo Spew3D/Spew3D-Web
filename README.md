@@ -2,7 +2,7 @@
 Spew3D-Web
 ==========
 
-On top of [Spew3D](https://codeberg.org/ell1e/Spew3D), this
+On top of [Spew3D](https://codeberg.org/Spew3D/Spew3D), this
 library **Spew3D-Web** implements various formats and helpers
 that might be used by Web and document applications.
 Since most basic games won't need them, they're in a separate
@@ -18,9 +18,9 @@ library.
 Compiling / Usage
 -----------------
 
-*(Get `spew3d.h` [from here](https://codeberg.org/ell1e/Spew3D/releases),
+*(Get `spew3d.h` [from here](https://codeberg.org/Spew3D/Spew3D/releases),
 and `spew3d-web.h`
-[from here](https://codeberg.org/ell1e/Spew3D-Web/releases).)*
+[from here](https://codeberg.org/Spew3D/Spew3D-Web/releases).)*
 
 **Step 1:** Add `spew3d.h` and `spew3d-web.h` into your project's
 code folder, and put this in all your files where you want to use
@@ -46,7 +46,7 @@ will make it contain the actual implementation code and not just its API:
 **Step 3:** When you link your final program, make sure to add [SDL2](
 https://libsdl.org) to your linked libraries, unless you're using
 the [Spew3D option to not use SDL](
-https://codeberg.org/ell1e/Spew3D#options).
+https://codeberg.org/Spew3D/Spew3D#options).
 
 Documentation
 -------------
