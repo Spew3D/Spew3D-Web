@@ -1,0 +1,3 @@
+[submodule "vendor/Spew3D"]
+	path = vendor/Spew3D
+	url = https://codeberg.org/ell1e/Spew3D

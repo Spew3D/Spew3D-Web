@@ -1,0 +1,4 @@
+*.o
+*.bin
+*.so
+/include/spew3d-web.h
