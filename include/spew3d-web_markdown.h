@@ -28,12 +28,47 @@ license, see accompanied LICENSE.md.
 #ifndef SPEW3DWEB_MARKDOWN_H_
 #define SPEW3DWEB_MARKDOWN_H_
 
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>  // for size_t
 
-S3DEXP int spew3dweb_markdown_GetIndependentChunk(
-    size_t (*read_func)(char *buff, size_t amount, void *userdata),
+S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
+    int (*read_func)(char *buff, size_t amount, void *userdata),
     void *userdata,
-    int opt_maxlinelen, int opt_maxchunklen
+    int opt_maxchunklen,
+    size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
+    SPEW3DVFS_FILE *f, int opt_maxchunklen, size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
+    FILE *f, int opt_maxchunklen, size_t *out_len
+);
+
+
+
+S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
+    SPEW3DVFS_FILE *f,
+    char *optionalbuf, size_t optionalbufsize,
+    int opt_maxchunklen, int opt_minchunklen,
+    size_t *out_len
+);
+
+S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
+    int (*read_func)(char *buff, size_t amount, void *userdata),
+    void *userdata,
+    char *optionalbuf, size_t optionalbufsize,
+    int opt_maxchunklen, int opt_minchunklen,
+    size_t *out_len
+);
+
+S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
+    const char *original_buffer, size_t original_buffer_len,
+    char *optionalbuf, size_t optionalbufsize,
+    int opt_maxchunklen, int opt_minchunklen,
+    size_t *out_len
 );
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
