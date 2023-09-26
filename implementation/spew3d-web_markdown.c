@@ -52,6 +52,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
     size_t readsize = 2048;
     if (optionalbufsize >= 64 && optionalbuf != NULL &&
             readsize > optionalbufsize) readsize = optionalbufsize;
+    if (readsize > opt_maxchunklen) readsize = opt_maxchunklen;
 
     // Read bit by bit, and find a good stopping position:
     unsigned int inside_backticks_of_len = 0;
@@ -86,8 +87,11 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         }
         size_t oldfill = readbuffill;
         readbuffill += bytes;
+        assert(readbuffill <= readbufsize);
         size_t k = oldfill;
-        while (k < readbuffill - 32) {
+        while ((int64_t)k <
+                (int64_t)readbuffill - (int64_t)32) {
+            assert(k < readbufsize);
             if (k >= opt_minchunklen &&
                     inside_backticks_of_len == 0) {
                 if ((readbuf[k] == '\r' &&
@@ -125,10 +129,13 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
             k += 1;
         }
         if (readbuffill >= opt_maxchunklen) {
+            assert(readbuffill == opt_maxchunklen);
             *out_len = readbuffill;
             return readbuf;
         }
         readsize = 2048;
+        if (readsize > readbuffill + opt_maxchunklen)
+            readsize = opt_maxchunklen - readbuffill;
     }
 }
 

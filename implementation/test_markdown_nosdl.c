@@ -37,10 +37,22 @@ license, see accompanied LICENSE.md.
 #include "testmain.h"
 
 
-START_TEST (test_markdown)
+START_TEST (test_markdown_chunks)
 {
-    int hello;
+    char testbuf[256] = {0};
+    char *result = NULL;
+    size_t resultlen = 0;
+    {
+        result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
+            "```abc def ```hello!",
+            testbuf, sizeof(testbuf),
+            10, 5,
+            &resultlen
+        );
+        assert(result == testbuf);
+        assert(resultlen == 10);
+    }
 }
 END_TEST
 
-TESTS_MAIN(test_markdown)
+TESTS_MAIN(test_markdown_chunks)

@@ -71,5 +71,19 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
     size_t *out_len
 );
 
+static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
+        const char *test_str,
+        char *optionalbuf, size_t optionalbufsize,
+        int opt_maxchunklen, int opt_minchunklen,
+        size_t *out_len
+        ) {
+    return _internal_spew3dweb_markdown_GetIChunkExFromMem(
+        test_str, strlen(test_str),
+        optionalbuf, optionalbufsize,
+        opt_maxchunklen, opt_minchunklen,
+        out_len
+    );
+}
+
 #endif  // SPEW3DWEB_MARKDOWN_H_
 
