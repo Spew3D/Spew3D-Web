@@ -35,7 +35,7 @@ update-vendor-if-needed:
 	@if [ ! -e "vendor/Spew3D/include/spew3d-web.h" ]; then $(MAKE) update-vendor; fi
 
 update-vendor:
-	git submodule init && git submodule update
+	@if [ ! -e "vendor/Spew3D/AUTHORS.md" ]; then git submodule update --init; fi
 	cd vendor/Spew3D/ && make amalgamate
 
 unittests:
