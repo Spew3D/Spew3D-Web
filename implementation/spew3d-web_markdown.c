@@ -524,11 +524,21 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         *out_orig_indent = indent_depth;
         return;
     }
+    // If we reached the end already, bail:
+    if (pos >= buflen) {
+        *out_is_code = 0;
+        *out_is_in_list_depth = 0;
+        *out_effective_indent = 0;
+        *out_write_this_many_spaces = 0;
+        *out_orig_indent = 0;
+        return;
+    }
     // See if this could be a list item start:
     int couldbelist = 0;
     int iflistthenwithnumber = -1;
     int iflistthenbulletlen = 0;
     int bulletstartpos = pos;
+    assert(pos < buflen);
     if (buf[pos] >= '0' && buf[pos] <= '9') {
         char digitbuf[12] = {0};
         digitbuf[0] = buf[pos];
