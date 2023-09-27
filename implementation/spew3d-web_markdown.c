@@ -400,5 +400,75 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
         )
     );
 }
+
+static int _insdel(
+        char **bufptr, size_t *buffill, size_t *bufalloc,
+        size_t insert_at, const char *insert, size_t delchars
+        ) {
+    char *buf = *bufptr;
+    size_t oldfill = *buffill;
+    size_t insertlen = (insert != NULL ? strlen(insert) : 0);
+    if (insertlen == 0 && delchars == 0) {
+        // Nothing to do!
+        return 1;
+    }
+    assert(delchars + insert_at <= oldfill);
+    size_t newfill = oldfill - delchars + insertlen;
+    if (newfill + 1 > *bufalloc) {
+        // We'll need more space to not overrun.
+        size_t newalloc = newfill + (oldfill / 4) + 512;
+        char *newbuf = realloc(buf, newalloc);
+        if (!newbuf) {
+            free(buf);
+            return 0;
+        }
+        buf = newbuf;
+        *bufptr = newbuf;
+        *bufalloc = newalloc;
+    }
+    // Check what shifts around after our insert and deletion point:
+    size_t shiftsectionlen = (oldfill - insert_at) - delchars;
+    int64_t shiftsectionamount = (
+        -((int64_t) delchars) + (int64_t)insertlen
+    );
+    // Do the shifting:
+    if (shiftsectionlen > 0 && shiftsectionamount != 0)
+        memmove(buf + insert_at + delchars,
+            buf + (int64_t)(((int64_t)insert_at + delchars) +
+            shiftsectionamount),
+            shiftsectionlen);
+    // Write the inserted part:
+    memcpy(buf + insert_at, insert, insertlen);
+    *buffill = newfill;
+    return 1;
+}
+
+char *spew3dweb_markdown_CleanChunk(
+        char **chunkptr, size_t *chunkfillptr,
+        size_t *chunkallocptr,
+        int opt_makecstring, int opt_cleanindent
+        ) {
+    char *chunk = *chunkptr;
+    size_t chunkfill = *chunkfillptr;
+    size_t chunkalloc = *chunkallocptr;
+    if (chunkfill >= chunkalloc && opt_makecstring) {
+        // Make room for null terminator
+        char *newchunk = realloc(chunk, chunkalloc + 128);
+        if (!newchunk) {
+            free(chunk);
+            return NULL;
+        }
+        chunkalloc += 128;
+        chunk = newchunk;
+    }
+
+    size_t i = 0;
+    while (i < chunkfill) {
+
+        i++;
+    }
+}
+
+
 #endif  // SPEW3DWEB_IMPLEMENTATION
 
