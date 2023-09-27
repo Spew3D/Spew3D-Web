@@ -103,9 +103,8 @@ START_TEST(test_markdown_clean)
             "\tabc\tdef", NULL, NULL
         );
         //printf("Result: <<%s>>\n", result);
-        assert(strcmp(result, "   abc\tdef") == 0);
+        assert(strcmp(result, "    abc\tdef") == 0);
         free(result);
-        assert(0);
     }
 }
 END_TEST

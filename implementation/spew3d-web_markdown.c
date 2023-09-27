@@ -513,7 +513,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 if (!INSREP(" ", spacecount))
                     return NULL;
                 currentlineindent = spacecount;
-                i += spacecount;
+                i = i2;
                 continue;
             } else if (c == '\r' || c == '\n') {
                 if (!INSC('\n'))
