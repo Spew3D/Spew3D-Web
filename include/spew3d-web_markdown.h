@@ -90,9 +90,8 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
 }
 
 char *spew3dweb_markdown_CleanChunk(
-    char **chunkptr, size_t *chunkfillptr,
-    size_t *chunkallocptr,
-    int opt_makecstring, int opt_cleanindent
+    const char *inputstr, size_t input_len,
+    size_t *out_len, size_t *out_alloc
 );
 
 #endif  // SPEW3DWEB_MARKDOWN_H_

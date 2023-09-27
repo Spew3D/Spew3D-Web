@@ -141,14 +141,20 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                         readbuf[k + 1] == '\n' &&
                         readbuf[k + 2] == '\r' &&
                         readbuf[k + 3] == '\n')) {
-                    if (!seekback_func(readbuffill - k,
-                            userdata)) {
-                        if (readbufheap) free(readbuf);
-                        return NULL;
+                    // FIXME: check that follow-up line isn't indented:
+                    int followup_line_indented = 0;
+
+                    if (!followup_line_indented) {
+                        // We can stop here.
+                        if (!seekback_func(readbuffill - k,
+                                userdata)) {
+                            if (readbufheap) free(readbuf);
+                            return NULL;
+                        }
+                        readbuf[k] = '\0';
+                        *out_len = k;
+                        return readbuf;
                     }
-                    readbuf[k] = '\0';
-                    *out_len = k;
-                    return readbuf;
                 }
             }
             // Track all ``` pairs to not stop inside them:
@@ -401,74 +407,125 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
     );
 }
 
-static int _insdel(
-        char **bufptr, size_t *buffill, size_t *bufalloc,
-        size_t insert_at, const char *insert, size_t delchars
+static int _ensurebufsize(
+        char **bufptr, size_t *bufalloc, size_t new_size
         ) {
-    char *buf = *bufptr;
-    size_t oldfill = *buffill;
-    size_t insertlen = (insert != NULL ? strlen(insert) : 0);
-    if (insertlen == 0 && delchars == 0) {
-        // Nothing to do!
-        return 1;
-    }
-    assert(delchars + insert_at <= oldfill);
-    size_t newfill = oldfill - delchars + insertlen;
-    if (newfill + 1 > *bufalloc) {
-        // We'll need more space to not overrun.
-        size_t newalloc = newfill + (oldfill / 4) + 512;
-        char *newbuf = realloc(buf, newalloc);
+    size_t oldalloc = *bufalloc;
+    if (!*bufptr || oldalloc < new_size) {
+        size_t new_alloc = (oldalloc + (oldalloc / 4) + 256);
+        if (new_alloc < new_size)
+            new_alloc = new_size;
+        char *newbuf = realloc(*bufptr, new_alloc);
         if (!newbuf) {
-            free(buf);
+            if (*bufptr) free(*bufptr);
             return 0;
         }
-        buf = newbuf;
         *bufptr = newbuf;
-        *bufalloc = newalloc;
+        *bufalloc = new_alloc;
     }
-    // Check what shifts around after our insert and deletion point:
-    size_t shiftsectionlen = (oldfill - insert_at) - delchars;
-    int64_t shiftsectionamount = (
-        -((int64_t) delchars) + (int64_t)insertlen
-    );
-    // Do the shifting:
-    if (shiftsectionlen > 0 && shiftsectionamount != 0)
-        memmove(buf + insert_at + delchars,
-            buf + (int64_t)(((int64_t)insert_at + delchars) +
-            shiftsectionamount),
-            shiftsectionlen);
-    // Write the inserted part:
-    memcpy(buf + insert_at, insert, insertlen);
-    *buffill = newfill;
+    return 1;
+}
+
+static int _bufappend(
+        char **bufptr, size_t *bufalloc, size_t *buffill,
+        const char *appendstr, size_t amount
+        ) {
+    if (amount == 0)
+        return 1;
+    const size_t appendlen = strlen(appendstr);
+    if (!_ensurebufsize(bufptr, bufalloc,
+            (*buffill) + appendlen * amount + 1))
+        return 0;
+    char *write = (*bufptr) + (*buffill);
+    size_t k = 0;
+    while (k < amount) {
+        memcpy(write, appendstr,
+            appendlen * amount);
+        write += appendlen;
+        k++;
+    }
+    (*buffill) += appendlen * amount;
     return 1;
 }
 
 char *spew3dweb_markdown_CleanChunk(
-        char **chunkptr, size_t *chunkfillptr,
-        size_t *chunkallocptr,
-        int opt_makecstring, int opt_cleanindent
+        const char *input, size_t inputlen,
+        size_t *out_len, size_t *out_alloc
         ) {
-    char *chunk = *chunkptr;
-    size_t chunkfill = *chunkfillptr;
-    size_t chunkalloc = *chunkallocptr;
-    if (chunkfill >= chunkalloc && opt_makecstring) {
-        // Make room for null terminator
-        char *newchunk = realloc(chunk, chunkalloc + 128);
-        if (!newchunk) {
-            free(chunk);
-            return NULL;
-        }
-        chunkalloc += 128;
-        chunk = newchunk;
-    }
+    char *resultchunk = NULL;
+    size_t resultfill = 0;
+    size_t resultalloc = 0;
+    if (!_ensurebufsize(&resultchunk, &resultalloc, 1))
+        return NULL;
 
+    #define INSC(insertchar) \
+        (_ensurebufsize(&resultchunk, &resultalloc,\
+        resultfill + 1) ? (\
+        (resultchunk[resultfill] = insertchar) * 0 +\
+        ((resultfill++) * 0) + 1) :\
+        0)
+    #define INS(insertstr) \
+        (_bufappend(&resultchunk, &resultalloc, &resultfill,\
+        insertstr, 1))
+    #define INSREP(insertstr, amount) \
+        (_bufappend(&resultchunk, &resultalloc, &resultfill,\
+        insertstr, amount))
+
+    int currentlineindent = 0;
     size_t i = 0;
-    while (i < chunkfill) {
-
+    while (i < inputlen) {
+        const char c = input[i];
+        if (resultfill == 0 ||
+                resultchunk[resultfill - 1] == '\n') {
+            // We're at a line start.
+            if (c == ' ' || c == '\t') {
+                // This line has indent.
+                int spacecount = 4;
+                size_t i2 = i + 1;
+                while (i2 < inputlen) {
+                    if (input[i2] == '\t') {
+                        spacecount += 4;
+                    } else if (input[i2] == ' ') {
+                        spacecount += 1;
+                    } else {
+                        break;
+                    }
+                    i2 += 1;
+                }
+                if (i2 >= inputlen ||
+                        input[i2] == '\r' ||
+                        input[i2] == '\n') {
+                    // This was just indent sitting in an empty
+                    // line, just ignore it.
+                    continue;  // No i advance here.
+                }
+                if (!INSREP(" ", spacecount))
+                    return NULL;
+                currentlineindent = spacecount;
+                i += spacecount;
+                continue;
+            } else if (c == '\r' || c == '\n') {
+                if (!INSC('\n'))
+                    return NULL;
+                if (c == '\r' &&
+                        i + 1 < inputlen &&
+                        input[i +  1] == '\n')
+                    i++;
+                i++;
+                continue;
+            } else {
+                currentlineindent = 0;
+            }
+        }
+        if (!INSC(c))
+            return NULL;
         i++;
     }
+    resultchunk[resultfill] = '\0';
+    *out_len = resultfill;
+    *out_alloc = resultalloc;
+    return resultchunk;
 }
-
 
 #endif  // SPEW3DWEB_IMPLEMENTATION
 
