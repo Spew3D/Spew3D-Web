@@ -1,4 +1,5 @@
 *.o
 *.bin
 *.so
+vgcore.*
 /include/spew3d-web.h
