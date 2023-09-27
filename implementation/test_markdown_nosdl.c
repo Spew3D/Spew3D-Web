@@ -52,6 +52,26 @@ START_TEST (test_markdown_chunks)
         assert(result == testbuf);
         assert(resultlen == 10);
     }
+    {
+        result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
+            "```abc\n\ndef ```hello!",
+            testbuf, sizeof(testbuf),
+            256, 5,
+            &resultlen
+        );
+        assert(result == testbuf);
+        assert(resultlen == 21);
+    }
+    {
+        result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
+            "``!abc\n\ndef ``?hello!",
+            testbuf, sizeof(testbuf),
+            256, 5,
+            &resultlen
+        );
+        assert(result == testbuf);
+        assert(resultlen == 6);
+    }
 }
 END_TEST
 

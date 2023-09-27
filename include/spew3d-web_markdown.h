@@ -34,17 +34,19 @@ license, see accompanied LICENSE.md.
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
     int (*read_func)(char *buff, size_t amount, void *userdata),
+    int (*checkeof)(void *userdata),
+    int (*seekback_func)(size_t backward_amount, void *userdata),
     void *userdata,
-    int opt_maxchunklen,
+    size_t opt_maxchunklen,
     size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
-    SPEW3DVFS_FILE *f, int opt_maxchunklen, size_t *out_len
+    SPEW3DVFS_FILE *f, size_t opt_maxchunklen, size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
-    FILE *f, int opt_maxchunklen, size_t *out_len
+    FILE *f, size_t opt_maxchunklen, size_t *out_len
 );
 
 
@@ -52,29 +54,31 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
     SPEW3DVFS_FILE *f,
     char *optionalbuf, size_t optionalbufsize,
-    int opt_maxchunklen, int opt_minchunklen,
+    size_t opt_maxchunklen, size_t opt_minchunklen,
     size_t *out_len
 );
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
     int (*read_func)(char *buff, size_t amount, void *userdata),
+    int (*checkeof)(void *userdata),
+    int (*seekback_func)(size_t backward_amount, void *userdata),
     void *userdata,
     char *optionalbuf, size_t optionalbufsize,
-    int opt_maxchunklen, int opt_minchunklen,
+    size_t opt_maxchunklen, size_t opt_minchunklen,
     size_t *out_len
 );
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
     const char *original_buffer, size_t original_buffer_len,
     char *optionalbuf, size_t optionalbufsize,
-    int opt_maxchunklen, int opt_minchunklen,
+    size_t opt_maxchunklen, size_t opt_minchunklen,
     size_t *out_len
 );
 
 static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
         const char *test_str,
         char *optionalbuf, size_t optionalbufsize,
-        int opt_maxchunklen, int opt_minchunklen,
+        size_t opt_maxchunklen, size_t opt_minchunklen,
         size_t *out_len
         ) {
     return _internal_spew3dweb_markdown_GetIChunkExFromMem(
