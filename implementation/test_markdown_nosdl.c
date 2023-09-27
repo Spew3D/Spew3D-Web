@@ -100,10 +100,18 @@ START_TEST(test_markdown_clean)
     char *result;
     {
         result = spew3dweb_markdown_Clean(
-            "\tabc\tdef", NULL, NULL
+            "\tabc\tdef\n  ", NULL, NULL
         );
         //printf("Result: <<%s>>\n", result);
-        assert(strcmp(result, "    abc\tdef") == 0);
+        assert(strcmp(result, "    abc\tdef\n") == 0);
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_Clean(
+            "  abc\n    def\n  ", NULL, NULL
+        );
+        //printf("Result: <<%s>>\n", result);
+        assert(strcmp(result, "abc\n    def\n") == 0);
         free(result);
     }
 }

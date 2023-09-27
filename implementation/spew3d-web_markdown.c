@@ -459,6 +459,223 @@ static int _bufappend(
     return 1;
 }
 
+#define MAX_LIST_NESTING 16
+
+S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
+        size_t pos, const char *buf,
+        size_t buflen,
+        int lastnonemptylineorigindent,
+        int lastnonemptylineeffectiveindent,
+        int lastnonemptylinewascodeindent,
+        int lastlinewasempty,
+        int *in_list_with_orig_indent_array,
+        int *in_list_logical_nesting_depth,
+        int *out_is_in_list_depth,
+        int *out_is_code,
+        int *out_effective_indent,
+        int *out_write_this_many_spaces,
+        int *out_content_start,
+        int *out_orig_indent,
+        int *out_is_list_entry,
+        int *out_number_list_entry_num
+        ) {
+    int indent_depth = 0;
+    while (pos < buflen &&
+            (buf[pos] == ' ' ||
+            buf[pos] == '\t')) {
+        indent_depth += (
+            buf[pos] == '\t' ? 4 : 1
+        );
+        pos += 1;
+    }
+    *out_is_list_entry = 0;
+    *out_number_list_entry_num = -1;
+    *out_content_start = pos;
+    if (indent_depth >= lastnonemptylineorigindent + 4 &&
+            !lastnonemptylinewascodeindent) {
+        // This starts a code line.
+        *out_is_code = 1;
+        *out_is_in_list_depth = *in_list_logical_nesting_depth;
+        *out_effective_indent = (
+            indent_depth + (
+                lastnonemptylineeffectiveindent -
+                lastnonemptylineorigindent
+            )
+        );
+        *out_write_this_many_spaces = *out_effective_indent;
+        *out_orig_indent = indent_depth;
+        return;
+    }
+    if (((*in_list_logical_nesting_depth) == 0 &&
+            lastnonemptylineorigindent >= 4) ||
+            (*in_list_logical_nesting_depth) > 1 &&
+            indent_depth >=
+            lastnonemptylineorigindent + 4) {
+        // This resumes a code line.
+        *out_is_code = 1;
+        *out_is_in_list_depth = *in_list_logical_nesting_depth;
+        *out_effective_indent = (
+            indent_depth + (
+                lastnonemptylineeffectiveindent -
+                lastnonemptylineorigindent
+            )
+        );
+        *out_write_this_many_spaces = *out_effective_indent;
+        *out_orig_indent = indent_depth;
+        return;
+    }
+    // See if this could be a list item start:
+    int couldbelist = 0;
+    int iflistthenwithnumber = -1;
+    int iflistthenbulletlen = 0;
+    int bulletstartpos = pos;
+    if (buf[pos] >= '0' && buf[pos] <= '9') {
+        char digitbuf[12] = {0};
+        digitbuf[0] = buf[pos];
+        pos += 1;
+        int numberstartpos = pos;
+        while (pos < buflen &&
+                (buf[pos] >= '0' &&
+                buf[pos] <= '9')) {
+            if (strlen(digitbuf) < 11)
+                digitbuf[strlen(digitbuf)] = buf[pos];
+            pos += 1;
+        }
+        if (pos < buflen && buf[pos] == '.') {
+            pos += 1;
+            couldbelist = 1;
+            iflistthenbulletlen = strlen(digitbuf) + 1;
+            iflistthenwithnumber = atoi(digitbuf);
+        }
+    } else if (buf[pos] == '-' || buf[pos] == '*') {
+        pos += 1;
+        couldbelist = 1;
+        iflistthenbulletlen = 2;
+        iflistthenwithnumber = -1;
+    }
+    if (couldbelist == 1 &&
+           (pos >= buflen || (
+                pos < buflen &&
+                (buf[pos] == ' ' ||
+                buf[pos] == '\t')))) {
+        *out_is_list_entry = 1;
+
+        // This is a list entry, for sure.
+        int effectivechars_bullet_to_text = (
+            buf[pos] == '\t' ? (
+            (pos - bulletstartpos) + 4) : (
+            (pos - bulletstartpos) + 1)
+        );
+        int contained_text_indent = (
+            effectivechars_bullet_to_text + indent_depth
+        );
+        // Now determine what nesting depth:
+        int list_nesting = 0;
+        if ((*in_list_logical_nesting_depth) == 0) {
+            list_nesting = 1;
+        } else {
+            int k = 0;
+            while (k < (*in_list_logical_nesting_depth)) {
+                if (k >= (*in_list_logical_nesting_depth) - 1) {
+                    if (contained_text_indent >
+                            in_list_with_orig_indent_array[k] + 2)
+                        list_nesting = (
+                            (*in_list_logical_nesting_depth) + 1
+                        );
+                    else
+                        list_nesting = (
+                            (*in_list_logical_nesting_depth)
+                        );
+                    break;
+                } else if (contained_text_indent >=
+                            in_list_with_orig_indent_array[k] &&
+                        contained_text_indent <
+                            in_list_with_orig_indent_array[k + 1]) {
+                    list_nesting = k + 1;
+                    break;
+                }
+                k += 1;
+            }
+        }
+        *out_is_code = 0;
+        *out_is_in_list_depth = list_nesting;
+        *out_effective_indent = (list_nesting * 4);
+        *out_orig_indent = contained_text_indent;
+        int write_spaces = ((*out_effective_indent) -
+            (iflistthenwithnumber >= 0 ? 4 : 3));
+        if (write_spaces < 0) write_spaces = 0;
+        *out_number_list_entry_num = iflistthenwithnumber; 
+        *out_write_this_many_spaces = write_spaces;
+        return;
+    }
+    pos = bulletstartpos;  // Revert, since not a list.
+
+    // This is not a list, and not code. Out-indent of list if non-empty:
+    if (pos >= buflen || buf[buflen - 1] == '\n' ||
+            buf[buflen - 1] == '\r') {
+        // It's empty, so keep current list going.
+        *out_is_code = 0;
+        *out_is_in_list_depth = (*in_list_logical_nesting_depth);
+        *out_orig_indent = (
+            (*in_list_logical_nesting_depth) > 0 ?
+            in_list_with_orig_indent_array[
+                (*in_list_logical_nesting_depth) - 1] : 0);
+        *out_effective_indent = (
+            (*in_list_logical_nesting_depth) * 4
+        );
+        *out_write_this_many_spaces = 0;
+        return;
+    }
+    // See what list level we must out indent to:
+    int list_nesting = 0;
+    if (!lastlinewasempty &&
+            ((*in_list_logical_nesting_depth) <= 1 ||
+            indent_depth >
+            in_list_with_orig_indent_array[
+                (*in_list_logical_nesting_depth) - 2
+            ])) {
+        // Special case, since we're still further indented
+        // than one layer "outside" of ours and glue to a
+        // previous list entry with no empty line,
+        // continue the list entry.
+        list_nesting = (*in_list_logical_nesting_depth);
+    } else {
+        // Find which list entry depth we still fit inside:
+        int k = 0;
+        while (k < (*in_list_logical_nesting_depth)) {
+            if (k >= (*in_list_logical_nesting_depth) - 1) {
+                if (indent_depth >
+                        in_list_with_orig_indent_array[k] + 2)
+                    list_nesting = (
+                        (*in_list_logical_nesting_depth) + 1
+                    );
+                else
+                    list_nesting = (*in_list_logical_nesting_depth);
+                break;
+            } else if (indent_depth >=
+                        in_list_with_orig_indent_array[k] &&
+                    indent_depth <
+                        in_list_with_orig_indent_array[k + 1]) {
+                list_nesting = k + 1;
+                break;
+            }
+            k += 1;
+        }
+    }
+    *out_is_code = 0;
+    *out_is_in_list_depth = list_nesting;
+    *out_orig_indent = (
+        (*in_list_logical_nesting_depth) > 0 ?
+        in_list_with_orig_indent_array[
+            (*in_list_logical_nesting_depth) - 1] : 0);
+    *out_effective_indent = (
+        (*in_list_logical_nesting_depth) * 4
+    );
+    *out_write_this_many_spaces = (
+        (*out_effective_indent)
+    );
+}
+
 char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         size_t *out_len, size_t *out_alloc
@@ -482,40 +699,109 @@ char *spew3dweb_markdown_CleanByteBuf(
         (_bufappend(&resultchunk, &resultalloc, &resultfill,\
         insertstr, amount))
 
-    int currentlineindent = 0;
+    int in_list_with_orig_indent[MAX_LIST_NESTING] = {0};
+    int in_list_logical_nesting_depth = 0;
+    int currentlineeffectiveindent = 0;
+    int currentlineorigindent = 0;
+    int lastnonemptylineeffectiveindent = 0;
+    int lastnonemptylineorigindent = 0;
+    int lastnoncodelineorigindent = 0;
+    int lastnonemptylinewascodeindent = 0;
+    int lastlinewasempty = 0;
     size_t i = 0;
-    while (i < inputlen) {
-        const char c = input[i];
-        if (resultfill == 0 ||
-                resultchunk[resultfill - 1] == '\n') {
-            // We're at a line start.
-            if (c == ' ' || c == '\t') {
-                // This line has indent.
-                int spacecount = 4;
+    while (i <= inputlen) {
+        const char c = (
+            i < inputlen ? input[i] : '\0'
+        );
+        int starts_new_line = (
+            resultfill == 0 ||
+            resultchunk[resultfill - 1] == '\n');
+        if (starts_new_line &&
+                i + 1 < inputlen &&
+                input[inputlen + 1] != '\r' ||
+                input[inputlen + 1] != '\n') {
+            // A non-empty line:
+            int first_nonspace_char_is_digit = 0;
+            {
                 size_t i2 = i + 1;
-                while (i2 < inputlen) {
-                    if (input[i2] == '\t') {
-                        spacecount += 4;
-                    } else if (input[i2] == ' ') {
-                        spacecount += 1;
-                    } else {
-                        break;
-                    }
-                    i2 += 1;
-                }
-                if (i2 >= inputlen ||
-                        input[i2] == '\r' ||
-                        input[i2] == '\n') {
-                    // This was just indent sitting in an empty
-                    // line, just ignore it.
-                    continue;  // No i advance here.
-                }
-                if (!INSREP(" ", spacecount))
-                    return NULL;
-                currentlineindent = spacecount;
-                i = i2;
+                while (i2 < inputlen && (
+                        input[i2] == ' ' ||
+                        input[i2] == '\t'))
+                    i2++;
+                first_nonspace_char_is_digit = (
+                    i2 < inputlen &&
+                    (input[i2] >= '0' && input[i2] <= '9')
+                );
+            }
+
+            int out_is_in_list_depth;
+            int out_is_code;
+            int out_effective_indent;
+            int out_write_this_many_spaces;
+            int out_content_start;
+            int out_orig_indent;
+            int out_is_list_entry;
+            int out_list_entry_num_value;
+            _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
+                i, resultchunk, resultfill,
+                lastnonemptylineorigindent,
+                lastnonemptylineeffectiveindent,
+                lastnonemptylinewascodeindent,
+                lastlinewasempty,
+                in_list_with_orig_indent,
+                &in_list_logical_nesting_depth,
+                &out_is_in_list_depth,
+                &out_is_code,
+                &out_effective_indent,
+                &out_write_this_many_spaces,
+                &out_content_start,
+                &out_orig_indent,
+                &out_is_list_entry,
+                &out_list_entry_num_value
+            );
+            int isemptyline = (!out_is_list_entry && (
+                i + out_content_start >= inputlen || (
+                input[i + out_content_start] == '\n' ||
+                input[i + out_content_start] == '\r')
+            ));
+            if (isemptyline) {
+                assert(out_content_start > 0);
+                i += out_content_start;
+                lastlinewasempty = 1; 
                 continue;
-            } else if (c == '\r' || c == '\n') {
+            }
+            lastlinewasempty = 0;
+            if (!INSREP(" ", out_write_this_many_spaces))
+                return NULL;
+            currentlineeffectiveindent = (
+                out_write_this_many_spaces
+            );
+            currentlineorigindent = out_orig_indent;
+            i += out_content_start;
+            lastlinewasempty = 0;
+        }
+        if (c == '\r' || c == '\n' ||
+                i >= inputlen) {
+            // Remove trailing indent from previous line:
+            while (resultfill > 0 && (
+                    resultchunk[resultfill - 1] == ' ' ||
+                    resultchunk[resultfill - 1] == '\t'))
+                resultfill--;
+            // If last line wasn't empty, remember its indent:
+            if (resultfill > 0 &&
+                    resultchunk[resultfill - 1] != '\n') {
+                lastnonemptylineeffectiveindent = (
+                    currentlineeffectiveindent
+                );
+                lastnonemptylineorigindent = (
+                    currentlineorigindent
+                );
+                lastlinewasempty = 0;
+            } else {
+                lastlinewasempty = 1;
+            }
+            // Fix the line break type:
+            if (i < inputlen) {
                 if (!INSC('\n'))
                     return NULL;
                 if (c == '\r' &&
@@ -525,10 +811,10 @@ char *spew3dweb_markdown_CleanByteBuf(
                 i++;
                 continue;
             } else {
-                currentlineindent = 0;
+                break;
             }
         }
-        if (c == '\0') {
+        if (c == '\0' && i < inputlen) {
             if (!INSC('?'))
                 return NULL;
         } else {
