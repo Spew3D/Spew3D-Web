@@ -141,8 +141,19 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                         readbuf[k + 1] == '\n' &&
                         readbuf[k + 2] == '\r' &&
                         readbuf[k + 3] == '\n')) {
-                    // FIXME: check that follow-up line isn't indented:
-                    int followup_line_indented = 0;
+                    // Check that follow-up line isn't indented:
+                    int followup_line_indented = 1;
+                    int j = k;
+                    while (j < readbufsize) {
+                        if (readbuf[j] == '\r' || readbuf[j] == '\n') {
+                            j++;
+                            continue;
+                        }
+                        followup_line_indented = (
+                            readbuf[j] == ' ' || readbuf[j] == '\t'
+                        );
+                        break;
+                    }
 
                     if (!followup_line_indented) {
                         // We can stop here.

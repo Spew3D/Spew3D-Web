@@ -74,6 +74,16 @@ START_TEST (test_markdown_chunks)
     }
     {
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
+            "``!abc\n\n def ``?hello!",
+            testbuf, sizeof(testbuf),
+            256, 5,
+            &resultlen
+        );
+        assert(result == testbuf);
+        assert(resultlen == 22);
+    }
+    {
+        result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "```!abc\n\nd````ef\n\n ```\n\n?hello!",
             testbuf, sizeof(testbuf),
             256, 5,
