@@ -89,8 +89,13 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
     );
 }
 
-char *spew3dweb_markdown_CleanChunk(
+char *spew3dweb_markdown_CleanByteBuf(
     const char *inputstr, size_t input_len,
+    size_t *out_len, size_t *out_alloc
+);
+
+char *spew3dweb_markdown_Clean(
+    const char *inputstr,
     size_t *out_len, size_t *out_alloc
 );
 

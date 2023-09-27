@@ -459,7 +459,7 @@ static int _bufappend(
     return 1;
 }
 
-char *spew3dweb_markdown_CleanChunk(
+char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         size_t *out_len, size_t *out_alloc
         ) {
@@ -528,14 +528,29 @@ char *spew3dweb_markdown_CleanChunk(
                 currentlineindent = 0;
             }
         }
-        if (!INSC(c))
-            return NULL;
+        if (c == '\0') {
+            if (!INSC('?'))
+                return NULL;
+        } else {
+            if (!INSC(c))
+                return NULL;
+        }
         i++;
     }
     resultchunk[resultfill] = '\0';
-    *out_len = resultfill;
-    *out_alloc = resultalloc;
+    if (out_len) *out_len = resultfill;
+    if (out_alloc) *out_alloc = resultalloc;
     return resultchunk;
+}
+
+char *spew3dweb_markdown_Clean(
+        const char *inputstr,
+        size_t *out_len, size_t *out_alloc
+        ) {
+    return spew3dweb_markdown_CleanByteBuf(
+        inputstr, strlen(inputstr),
+        out_len, out_alloc
+    );
 }
 
 #endif  // SPEW3DWEB_IMPLEMENTATION

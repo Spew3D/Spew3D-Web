@@ -95,4 +95,20 @@ START_TEST (test_markdown_chunks)
 }
 END_TEST
 
-TESTS_MAIN(test_markdown_chunks)
+START_TEST(test_markdown_clean)
+{
+    char *result;
+    {
+        result = spew3dweb_markdown_Clean(
+            "\tabc\tdef", NULL, NULL
+        );
+        //printf("Result: <<%s>>\n", result);
+        assert(strcmp(result, "   abc\tdef") == 0);
+        free(result);
+        assert(0);
+    }
+}
+END_TEST
+
+TESTS_MAIN(test_markdown_chunks, test_markdown_clean)
+
