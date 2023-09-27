@@ -68,7 +68,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
     while (1) {
         if (!readbuf || readbufsize < readbuffill + readsize + 1) {
             // We first need more buffer space to read into
-            if (checkeof_func(userdata)) {
+            if (checkeof_func(userdata) && readbuf != NULL) {
                 // We reached the end anyway, so just stop.
                 readsize = 0;
             } else {
@@ -76,7 +76,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                 size_t new_size = readbufsize * 2;
                 if (new_size < readbuffill + readsize * 2 + 1)
                     new_size = readbuffill + readsize * 2 + 1;
-                if (new_size < 2048) new_size = 2048;
+                if (new_size < 512) new_size = 512;
                 if (new_size > opt_maxchunklen + 1)
                     new_size = opt_maxchunklen + 1;
                 char *newreadbuf = realloc(
@@ -168,6 +168,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                 } else if (inside_backticks_of_len == 0) {
                     inside_backticks_of_len = tickscount;
                 }
+                continue;
             }
             k += 1;
         }
