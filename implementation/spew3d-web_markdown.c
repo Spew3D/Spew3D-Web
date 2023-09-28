@@ -479,6 +479,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         int *out_is_list_entry,
         int *out_number_list_entry_num
         ) {
+    int startpos = pos;
     int indent_depth = 0;
     while (pos < buflen &&
             (buf[pos] == ' ' ||
@@ -490,7 +491,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     }
     *out_is_list_entry = 0;
     *out_number_list_entry_num = -1;
-    *out_content_start = pos;
+    *out_content_start = (pos - startpos);
     if (indent_depth >= lastnonemptylineorigindent + 4 &&
             !lastnonemptylinewascodeindent) {
         // This starts a code line.
@@ -677,7 +678,8 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     *out_orig_indent = (
         (*in_list_logical_nesting_depth) > 0 ?
         in_list_with_orig_indent_array[
-            (*in_list_logical_nesting_depth) - 1] : 0);
+            (*in_list_logical_nesting_depth) - 1] :
+        indent_depth);
     *out_effective_indent = (
         (*in_list_logical_nesting_depth) * 4
     );
@@ -724,26 +726,15 @@ char *spew3dweb_markdown_CleanByteBuf(
             i < inputlen ? input[i] : '\0'
         );
         int starts_new_line = (
-            resultfill == 0 ||
-            resultchunk[resultfill - 1] == '\n');
-        if (starts_new_line &&
-                i + 1 < inputlen &&
+            (resultfill == 0 && i == 0) || (
+            i > 0 && (input[i - 1] == '\n' ||
+            input[i - 1] == '\r') &&
+            resultchunk[resultfill - 1] == '\n'));
+        if (starts_new_line && (
+                i + 1 >= inputlen ||
                 input[inputlen + 1] != '\r' ||
-                input[inputlen + 1] != '\n') {
+                input[inputlen + 1] != '\n')) {
             // A non-empty line:
-            int first_nonspace_char_is_digit = 0;
-            {
-                size_t i2 = i + 1;
-                while (i2 < inputlen && (
-                        input[i2] == ' ' ||
-                        input[i2] == '\t'))
-                    i2++;
-                first_nonspace_char_is_digit = (
-                    i2 < inputlen &&
-                    (input[i2] >= '0' && input[i2] <= '9')
-                );
-            }
-
             int out_is_in_list_depth;
             int out_is_code;
             int out_effective_indent;
@@ -753,7 +744,7 @@ char *spew3dweb_markdown_CleanByteBuf(
             int out_is_list_entry;
             int out_list_entry_num_value;
             _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
-                i, resultchunk, resultfill,
+                i, input, inputlen,
                 lastnonemptylineorigindent,
                 lastnonemptylineeffectiveindent,
                 lastnonemptylinewascodeindent,
@@ -769,12 +760,13 @@ char *spew3dweb_markdown_CleanByteBuf(
                 &out_is_list_entry,
                 &out_list_entry_num_value
             );
-            int isemptyline = (!out_is_list_entry && (
+            int isonlywhitespace = (!out_is_list_entry && (
                 i + out_content_start >= inputlen || (
                 input[i + out_content_start] == '\n' ||
                 input[i + out_content_start] == '\r')
             ));
-            if (isemptyline) {
+            if (isonlywhitespace) {
+                // It had only whitespace, that counts as empty.
                 assert(out_content_start > 0);
                 i += out_content_start;
                 lastlinewasempty = 1; 
@@ -783,12 +775,38 @@ char *spew3dweb_markdown_CleanByteBuf(
             lastlinewasempty = 0;
             if (!INSREP(" ", out_write_this_many_spaces))
                 return NULL;
+            if (out_is_list_entry) {
+                assert(!out_is_code);
+                if (out_list_entry_num_value >= 0) {
+                    char buf[5] = {0};
+                    snprintf(buf, sizeof(buf) - 1, "%d",
+                        out_list_entry_num_value);
+                    buf[sizeof(buf) - 1] = '\0';
+                    if (!INS(buf) || !INSC('.'))
+                        return NULL;
+                    assert(strlen(buf) >= 1);
+                    if (strlen(buf) == 1)
+                        if (!INS("  "))
+                            return NULL;
+                    else
+                        if (!INS(" "))
+                            return NULL;
+                } else {
+                    if (!INS("- "))
+                        return NULL;
+                }
+                assert(out_content_start > 0);
+            }
+            lastnonemptylinewascodeindent = out_is_code;
             currentlineeffectiveindent = (
                 out_write_this_many_spaces
             );
             currentlineorigindent = out_orig_indent;
             i += out_content_start;
             lastlinewasempty = 0;
+            if (out_content_start > 0)
+                // We skipped forward, so restart iteration:
+                continue;
         }
         if (c == '\r' || c == '\n' ||
                 i >= inputlen) {

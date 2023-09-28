@@ -36,7 +36,6 @@ license, see accompanied LICENSE.md.
 
 #include "testmain.h"
 
-
 START_TEST (test_markdown_chunks)
 {
     char testbuf[256] = {0};
@@ -102,7 +101,7 @@ START_TEST(test_markdown_clean)
         result = spew3dweb_markdown_Clean(
             "\tabc\tdef\n  ", NULL, NULL
         );
-        //printf("Result: <<%s>>\n", result);
+        printf("test_markdown_clean result #0: <<%s>>\n", result);
         assert(strcmp(result, "    abc\tdef\n") == 0);
         free(result);
     }
@@ -110,7 +109,15 @@ START_TEST(test_markdown_clean)
         result = spew3dweb_markdown_Clean(
             "  abc\n    def\n  ", NULL, NULL
         );
-        //printf("Result: <<%s>>\n", result);
+        printf("test_markdown_clean result #1: <<%s>>\n", result);
+        assert(strcmp(result, "abc\ndef\n") == 0);
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_Clean(
+            "  abc\n      def\n  ", NULL, NULL
+        );
+        printf("test_markdown_clean result #2: <<%s>>\n", result);
         assert(strcmp(result, "abc\n    def\n") == 0);
         free(result);
     }
