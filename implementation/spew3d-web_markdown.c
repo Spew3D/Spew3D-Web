@@ -469,7 +469,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         int lastnonemptylinewascodeindent,
         int lastlinewasemptyorblockinterruptor,
         int *in_list_with_orig_indent_array,
-        int *in_list_logical_nesting_depth,
+        int in_list_logical_nesting_depth,
         int *out_is_in_list_depth,
         int *out_is_code,
         int *out_effective_indent,
@@ -497,7 +497,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
             !lastnonemptylinewascodeindent) {
         // This starts a code line.
         *out_is_code = 1;
-        *out_is_in_list_depth = *in_list_logical_nesting_depth;
+        *out_is_in_list_depth = in_list_logical_nesting_depth;
         *out_effective_indent = (
             indent_depth + (
                 lastnonemptylineeffectiveindent -
@@ -508,14 +508,14 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         *out_orig_indent = indent_depth;
         return;
     }
-    if (((*in_list_logical_nesting_depth) == 0 &&
+    if ((in_list_logical_nesting_depth == 0 &&
             lastnonemptylineorigindent >= 4) ||
-            (*in_list_logical_nesting_depth) > 1 &&
+            in_list_logical_nesting_depth > 1 &&
             indent_depth >=
             lastnonemptylineorigindent + 4) {
         // This resumes a code line.
         *out_is_code = 1;
-        *out_is_in_list_depth = *in_list_logical_nesting_depth;
+        *out_is_in_list_depth = in_list_logical_nesting_depth;
         *out_effective_indent = (
             indent_depth + (
                 lastnonemptylineeffectiveindent -
@@ -594,20 +594,20 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         );
         // Now determine what nesting depth:
         int list_nesting = 0;
-        if ((*in_list_logical_nesting_depth) == 0) {
+        if (in_list_logical_nesting_depth == 0) {
             list_nesting = 1;
         } else {
             int k = 0;
-            while (k < (*in_list_logical_nesting_depth)) {
-                if (k >= (*in_list_logical_nesting_depth) - 1) {
+            while (k < in_list_logical_nesting_depth) {
+                if (k >= in_list_logical_nesting_depth - 1) {
                     if (contained_text_indent >
                             in_list_with_orig_indent_array[k] + 2)
                         list_nesting = (
-                            (*in_list_logical_nesting_depth) + 1
+                            in_list_logical_nesting_depth + 1
                         );
                     else
                         list_nesting = (
-                            (*in_list_logical_nesting_depth)
+                            in_list_logical_nesting_depth
                         );
                     break;
                 } else if (contained_text_indent >=
@@ -638,13 +638,13 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
             buf[buflen - 1] == '\r') {
         // It's empty, so keep current list going.
         *out_is_code = 0;
-        *out_is_in_list_depth = (*in_list_logical_nesting_depth);
+        *out_is_in_list_depth = in_list_logical_nesting_depth;
         *out_orig_indent = (
-            (*in_list_logical_nesting_depth) > 0 ?
+            in_list_logical_nesting_depth > 0 ?
             in_list_with_orig_indent_array[
-                (*in_list_logical_nesting_depth) - 1] : 0);
+                in_list_logical_nesting_depth - 1] : 0);
         *out_effective_indent = (
-            (*in_list_logical_nesting_depth) * 4
+            in_list_logical_nesting_depth * 4
         );
         *out_write_this_many_spaces = 0;
         return;
@@ -652,28 +652,28 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     // See what list level we must out indent to:
     int list_nesting = 0;
     if (!lastlinewasemptyorblockinterruptor &&
-            ((*in_list_logical_nesting_depth) <= 1 ||
+            (in_list_logical_nesting_depth <= 1 ||
             indent_depth >
             in_list_with_orig_indent_array[
-                (*in_list_logical_nesting_depth) - 2
+                in_list_logical_nesting_depth - 2
             ])) {
         // Special case, since we're still further indented
         // than one layer "outside" of ours and glue to a
         // previous list entry with no empty line,
         // continue the list entry.
-        list_nesting = (*in_list_logical_nesting_depth);
+        list_nesting = in_list_logical_nesting_depth;
     } else {
         // Find which list entry depth we still fit inside:
         int k = 0;
-        while (k < (*in_list_logical_nesting_depth)) {
-            if (k >= (*in_list_logical_nesting_depth) - 1) {
+        while (k < in_list_logical_nesting_depth) {
+            if (k >= in_list_logical_nesting_depth - 1) {
                 if (indent_depth >
                         in_list_with_orig_indent_array[k] + 2)
                     list_nesting = (
-                        (*in_list_logical_nesting_depth) + 1
+                        in_list_logical_nesting_depth + 1
                     );
                 else
-                    list_nesting = (*in_list_logical_nesting_depth);
+                    list_nesting = in_list_logical_nesting_depth;
                 break;
             } else if (indent_depth >=
                         in_list_with_orig_indent_array[k] &&
@@ -688,12 +688,12 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     *out_is_code = 0;
     *out_is_in_list_depth = list_nesting;
     *out_orig_indent = (
-        (*in_list_logical_nesting_depth) > 0 ?
+        in_list_logical_nesting_depth > 0 ?
         in_list_with_orig_indent_array[
-            (*in_list_logical_nesting_depth) - 1] :
+            in_list_logical_nesting_depth - 1] :
         indent_depth);
     *out_effective_indent = (
-        (*in_list_logical_nesting_depth) * 4
+        in_list_logical_nesting_depth * 4
     );
     *out_write_this_many_spaces = (
         (*out_effective_indent)
@@ -785,7 +785,6 @@ char *spew3dweb_markdown_CleanByteBuf(
     int currentlinehadnonwhitespaceotherthanbullet = 0;
     int lastnonemptylineeffectiveindent = 0;
     int lastnonemptylineorigindent = 0;
-    int lastnoncodelineorigindent = 0;
     int lastnonemptylinewascodeindent = 0;
     int lastlinewasemptyorblockinterruptor = 0;
     size_t i = 0;
@@ -824,7 +823,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 lastnonemptylinewascodeindent,
                 lastlinewasemptyorblockinterruptor,
                 in_list_with_orig_indent,
-                &in_list_logical_nesting_depth,
+                in_list_logical_nesting_depth,
                 &out_is_in_list_depth,
                 &out_is_code,
                 &out_effective_indent,
@@ -835,6 +834,18 @@ char *spew3dweb_markdown_CleanByteBuf(
                 &out_list_bullet_type,
                 &out_list_entry_num_value
             );
+            assert(out_is_in_list_depth >= 0 &&
+                out_is_in_list_depth <=
+                in_list_logical_nesting_depth + 1);
+            if (out_is_in_list_depth > MAX_LIST_NESTING)
+                out_is_in_list_depth = MAX_LIST_NESTING;
+            if (out_is_in_list_depth >
+                    in_list_logical_nesting_depth) {
+                in_list_logical_nesting_depth = out_is_in_list_depth;
+                in_list_with_orig_indent[out_is_in_list_depth - 1] = (
+                    out_orig_indent
+                );
+            }
             int isonlywhitespace = (!out_is_list_entry && (
                 i + out_content_start >= inputlen || (
                 input[i + out_content_start] == '\n' ||

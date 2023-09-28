@@ -145,6 +145,15 @@ START_TEST(test_markdown_clean)
         assert(strcmp(result, "  > abc\n      > def\n") == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "> abc d\n  --\n  aef\n   efaef\n     \n  > test\n    x", NULL, NULL
+        );
+        printf("test_markdown_clean result #6: <<%s>>\n", result);
+        assert(strcmp(result, "  > abc d\n    -----\n    aef\n"
+            "    efaef\n\n      > test\n        x") == 0);
+        free(result);
+    }
 }
 END_TEST
 
