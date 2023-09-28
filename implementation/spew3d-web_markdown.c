@@ -467,7 +467,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         int lastnonemptylineorigindent,
         int lastnonemptylineeffectiveindent,
         int lastnonemptylinewascodeindent,
-        int lastlinewasempty,
+        int lastlinewasemptyorblockinterruptor,
         int *in_list_with_orig_indent_array,
         int *in_list_logical_nesting_depth,
         int *out_is_in_list_depth,
@@ -642,7 +642,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     }
     // See what list level we must out indent to:
     int list_nesting = 0;
-    if (!lastlinewasempty &&
+    if (!lastlinewasemptyorblockinterruptor &&
             ((*in_list_logical_nesting_depth) <= 1 ||
             indent_depth >
             in_list_with_orig_indent_array[
@@ -691,6 +691,30 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     );
 }
 
+static int _getlastoutputlinelen(
+        const char *buffer, int buffill
+        ) {
+    int pos = buffill - 1;
+    while (pos >= 0 &&
+            buffer[pos] != '\n')
+        pos -= 1;
+    if (pos < 0)
+        return 0;
+    assert(buffer[pos] == '\n');
+    pos -= 1;
+    while (pos >= 0 &&
+            (buffer[pos] == ' ' ||
+            buffer[pos] == '\t'))
+        pos -= 1;
+    int len = 0;
+    while (pos >= 0 &&
+            buffer[pos] != '\n') {
+        pos -= 1;
+        len++;
+    }
+    return len;
+}
+
 char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         size_t *out_len, size_t *out_alloc
@@ -714,15 +738,17 @@ char *spew3dweb_markdown_CleanByteBuf(
         (_bufappend(&resultchunk, &resultalloc, &resultfill,\
         insertstr, amount))
 
+    int currentlineisblockinterruptor = 0;
     int in_list_with_orig_indent[MAX_LIST_NESTING] = {0};
     int in_list_logical_nesting_depth = 0;
     int currentlineeffectiveindent = 0;
     int currentlineorigindent = 0;
+    int currentlinehadnonwhitespace = 0;
     int lastnonemptylineeffectiveindent = 0;
     int lastnonemptylineorigindent = 0;
     int lastnoncodelineorigindent = 0;
     int lastnonemptylinewascodeindent = 0;
-    int lastlinewasempty = 0;
+    int lastlinewasemptyorblockinterruptor = 0;
     size_t i = 0;
     while (i <= inputlen) {
         const char c = (
@@ -738,6 +764,8 @@ char *spew3dweb_markdown_CleanByteBuf(
                 input[inputlen + 1] != '\r' ||
                 input[inputlen + 1] != '\n')) {
             // A non-empty line:
+            currentlineisblockinterruptor = 0;
+            currentlinehadnonwhitespace = 0;
             int out_is_in_list_depth;
             int out_is_code;
             int out_effective_indent;
@@ -751,7 +779,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 lastnonemptylineorigindent,
                 lastnonemptylineeffectiveindent,
                 lastnonemptylinewascodeindent,
-                lastlinewasempty,
+                lastlinewasemptyorblockinterruptor,
                 in_list_with_orig_indent,
                 &in_list_logical_nesting_depth,
                 &out_is_in_list_depth,
@@ -772,13 +800,14 @@ char *spew3dweb_markdown_CleanByteBuf(
                 // It had only whitespace, that counts as empty.
                 assert(out_content_start > 0);
                 i += out_content_start;
-                lastlinewasempty = 1; 
+                lastlinewasemptyorblockinterruptor = 1;
                 continue;
             }
-            lastlinewasempty = 0;
+            lastlinewasemptyorblockinterruptor = 0;
             if (!INSREP(" ", out_write_this_many_spaces))
                 return NULL;
             if (out_is_list_entry) {
+                currentlinehadnonwhitespace = 1;
                 assert(!out_is_code);
                 if (out_list_entry_num_value >= 0) {
                     char buf[5] = {0};
@@ -806,19 +835,42 @@ char *spew3dweb_markdown_CleanByteBuf(
             );
             currentlineorigindent = out_orig_indent;
             i += out_content_start;
-            lastlinewasempty = 0;
+            lastlinewasemptyorblockinterruptor = 0;
             if (out_content_start > 0)
                 // We skipped forward, so restart iteration:
                 continue;
         }
+        if (c == '-' || i == '=') {
+            // It's possibly a heading.
+            int i2 = i + 1;
+            while (i2 < inputlen &&
+                    input[i2] == c)
+                i2 += 1;
+            while (i2 < inputlen &&
+                    (input[i2] == ' ' || input[i2] == '\t'))
+            if (i2 >= inputlen ||
+                    input[i2] == '\n' ||
+                    input[i2] == '\r') {
+                // Confirmed heading.
+                i = i2;
+                currentlineisblockinterruptor = 1;
+                lastlinewasemptyorblockinterruptor = 1;
+                char heading[2] = {0};
+                heading[0] = c;
+                INSREP(heading, _getlastoutputlinelen(
+                    resultchunk, resultfill
+                ));
+                continue;
+            }
+        }
         if (c == '\r' || c == '\n' ||
                 i >= inputlen) {
-            // Remove trailing indent from previous line:
+            // Remove trailing indent from line written so far:
             while (resultfill > 0 && (
                     resultchunk[resultfill - 1] == ' ' ||
                     resultchunk[resultfill - 1] == '\t'))
                 resultfill--;
-            // If last line wasn't empty, remember its indent:
+            // If line written so far wasn't empty, remember indent:
             if (resultfill > 0 &&
                     resultchunk[resultfill - 1] != '\n') {
                 lastnonemptylineeffectiveindent = (
@@ -827,10 +879,12 @@ char *spew3dweb_markdown_CleanByteBuf(
                 lastnonemptylineorigindent = (
                     currentlineorigindent
                 );
-                lastlinewasempty = 0;
+                if (!currentlineisblockinterruptor)
+                    lastlinewasemptyorblockinterruptor = 0;
             } else {
-                lastlinewasempty = 1;
+                lastlinewasemptyorblockinterruptor = 1;
             }
+            currentlineisblockinterruptor = 0;
             // Fix the line break type:
             if (i < inputlen) {
                 if (!INSC('\n'))
