@@ -580,6 +580,9 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         int contained_text_indent = (
             effectivechars_bullet_to_text + indent_depth
         );
+        (*out_content_start) = (
+            (*out_content_start) + effectivechars_bullet_to_text
+        );
         // Now determine what nesting depth:
         int list_nesting = 0;
         if ((*in_list_logical_nesting_depth) == 0) {
@@ -613,7 +616,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         *out_effective_indent = (list_nesting * 4);
         *out_orig_indent = contained_text_indent;
         int write_spaces = ((*out_effective_indent) -
-            (iflistthenwithnumber >= 0 ? 4 : 3));
+            (iflistthenwithnumber >= 0 ? 4 : 2));
         if (write_spaces < 0) write_spaces = 0;
         *out_number_list_entry_num = iflistthenwithnumber; 
         *out_write_this_many_spaces = write_spaces;
@@ -799,7 +802,7 @@ char *spew3dweb_markdown_CleanByteBuf(
             }
             lastnonemptylinewascodeindent = out_is_code;
             currentlineeffectiveindent = (
-                out_write_this_many_spaces
+                out_effective_indent
             );
             currentlineorigindent = out_orig_indent;
             i += out_content_start;
