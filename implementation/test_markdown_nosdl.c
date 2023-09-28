@@ -99,7 +99,7 @@ START_TEST(test_markdown_clean)
     char *result;
     {
         result = spew3dweb_markdown_Clean(
-            "\tabc\tdef\n  ", NULL, NULL
+            "\tabc\tdef\n  ", NULL
         );
         printf("test_markdown_clean result #0: <<%s>>\n", result);
         assert(strcmp(result, "    abc\tdef\n") == 0);
@@ -107,7 +107,7 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "  abc\n    def\n  ", NULL, NULL
+            "  abc\n    def\n  ", NULL
         );
         printf("test_markdown_clean result #1: <<%s>>\n", result);
         assert(strcmp(result, "abc\ndef\n") == 0);
@@ -115,7 +115,7 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "  abc\n      def\n  ", NULL, NULL
+            "  abc\n      def\n  ", NULL
         );
         printf("test_markdown_clean result #2: <<%s>>\n", result);
         assert(strcmp(result, "abc\n    def\n") == 0);
@@ -123,7 +123,7 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "  abc\n  --\n", NULL, NULL
+            "  abc\n  --\n", NULL
         );
         printf("test_markdown_clean result #3: <<%s>>\n", result);
         assert(strcmp(result, "abc\n---\n") == 0);
@@ -131,15 +131,15 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "- abc\n      def\n  ", NULL, NULL
+            "- abc\n\n      def\n  ", NULL
         );
         printf("test_markdown_clean result #4: <<%s>>\n", result);
-        assert(strcmp(result, "  - abc\n        def\n") == 0);
+        assert(strcmp(result, "  - abc\n\n        def\n") == 0);
         free(result);
     }
     {
         result = spew3dweb_markdown_Clean(
-            "> abc\n  > def\n  ", NULL, NULL
+            "> abc\n  > def\n  ", NULL
         );
         printf("test_markdown_clean result #5: <<%s>>\n", result);
         assert(strcmp(result, "  > abc\n      > def\n") == 0);
@@ -147,7 +147,7 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "> abc d\n  --\n  aef\n   efaef\n     \n  > test\n    x", NULL, NULL
+            "> abc d\n  --\n  aef\n   efaef\n     \n  > test\n    x", NULL
         );
         printf("test_markdown_clean result #6: <<%s>>\n", result);
         assert(strcmp(result, "  > abc d\n    -----\n    aef\n"
@@ -157,5 +157,69 @@ START_TEST(test_markdown_clean)
 }
 END_TEST
 
-TESTS_MAIN(test_markdown_chunks, test_markdown_clean)
+static int _s3dw_check_html_same(const char *p1, const char *p2) {
+    int previous_p1_was_tagclose = 0;
+    int previous_p2_was_tagclose = 0;
+    while (1) {
+        while ((*p1 == ' ' || *p1 == '\t' ||
+                *p1 == '\r' || *p1 == '\n') &&
+                (*(p1 + 1) == ' ' || *(p1 + 1) == '\t' ||
+                *(p1 + 1) == '\r' || *(p1 + 1) == '\n' ||
+                *(p1 + 1) == '<' || previous_p1_was_tagclose))
+            p1++;
+        while ((*p2 == ' ' || *p2 == '\t' ||
+                *p2 == '\r' || *p2 == '\n') &&
+                (*(p2 + 1) == ' ' || *(p2 + 1) == '\t' ||
+                *(p2 + 1) == '\r' || *(p2 + 1) == '\n' ||
+                *(p2 + 1) == '<' || previous_p2_was_tagclose))
+            p2++;
+        /*printf("_s3dw_check_html_same: p1='%c' p2='%c'\n",
+            (*p1 != '\0' ? *p1 : '?'),
+            (*p2 != '\0' ? *p2 : '?'));*/
+        while (*p1 == '\0' &&
+                (*p2 == '\r' || *p2 == '\n' ||
+                *p2 == ' ' || *p2 == '\t'))
+            p2++;
+        while (*p2 == '\0' && (*p1 == '\r' || *p2 == '\n' ||
+                *p1 == ' ' || *p1 == '\t'))
+            p1++;
+        if ((*p1) != (*p2)) {
+            if ((*p1 != ' ' && *p1 != '\t' &&
+                    *p1 != '\r' && *p1 != '\n') ||
+                    (*p2 != ' ' && *p2 != '\t' &&
+                    *p2 != '\r' && *p2 != '\n'))
+                return 0;
+        }
+        if (*p1 == '\0') {
+            assert(*p2 == '\0');
+            return 1;
+        }
+        previous_p1_was_tagclose = ((*p1) == '>');
+        previous_p2_was_tagclose = ((*p2) == '>');
+        p1++;
+        p2++;
+    }
+}
+
+START_TEST(test_markdown_tohtml)
+{
+    assert(_s3dw_check_html_same("  <span>test\nbla",
+        "<span> test  bla "));
+    assert(!_s3dw_check_html_same("  <span>test\nbla",
+        "<span> testbla "));
+    char *result;
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "# abc\ndef", NULL
+        );
+        printf("test_markdown_tohtml result #0: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<h1>abc</h1>\n<p>def</p>"));
+        free(result);
+    }
+}
+END_TEST
+
+TESTS_MAIN(test_markdown_chunks, test_markdown_clean,
+    test_markdown_tohtml)
 

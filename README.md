@@ -10,10 +10,25 @@ library.
 
 **Provided formats:**
 
-- **Markdown helpers and cleanup:** Cleaning up of markdown text written
-  in a careless manner that might trip up parsers otherwise.
-  Implementation of less common markdown syntax features by translating
-  them to regular markdown or HTML fragments as needed.
+- **Markdown:** A self-contained markdown parser, which implements
+  the basic feature set e.g. found in [CommonMark](
+    https://commonmark.org) (although not always the same
+  corner-case handling) and with additional support for:
+
+  - Basic **markdown tables**:
+
+        |Column 1      |Column 2      |
+        |--------------|--------------|
+        |Row 1 cell 1  |Row 1 cell 2  |
+        |Row 2 cell 1  |Row 1 cell 2  |
+
+  - Extra syntax for **image dimensions**, useful for High-DPI images:
+
+        ![Descriptive text](image.png){width=100 height=100px}
+
+  - Option to disable unsafe HTML for untrusted sources.
+
+- **JSON:** upcoming.
 
 Compiling / Usage
 -----------------
@@ -26,22 +41,22 @@ and `spew3d-web.h`
 code folder, and put this in all your files where you want to use
 them from:
 
-```
-#include <spew3d.h>
-#include <spew3d-web.h>  // must be included after spew3d.h!
-```
+  ```C
+  #include <spew3d.h>
+  #include <spew3d-web.h>  // must be included after spew3d.h!
+  ```
 
 **Step 2:** In only a single object file, add this define which
 will make it contain the actual implementation code and not just its API:
 
-```
-#define SPEW3D_IMPLEMENTATION
-#include <spew3d.h>
-#undef SPEW3D_IMPLEMENTATION
-#define SPEW3DWEB_IMPLEMENTATION
-#include <spew3d-web.h>
-#undef SPEW3DWEB_IMPLEMENTATION
-```
+  ```C
+  #define SPEW3D_IMPLEMENTATION
+  #include <spew3d.h>
+  #undef SPEW3D_IMPLEMENTATION
+  #define SPEW3DWEB_IMPLEMENTATION
+  #include <spew3d-web.h>
+  #undef SPEW3DWEB_IMPLEMENTATION
+  ```
 
 **Step 3:** When you link your final program, make sure to add [SDL2](
 https://libsdl.org) to your linked libraries, unless you're using
