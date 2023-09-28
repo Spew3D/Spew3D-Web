@@ -798,7 +798,8 @@ char *spew3dweb_markdown_CleanByteBuf(
             i > 0 && (input[i - 1] == '\n' ||
             input[i - 1] == '\r') &&
             resultchunk[resultfill - 1] == '\n'));
-        if (starts_new_line && (
+        if (starts_new_line && i < inputlen &&
+                c != '\n' && c != '\r' && (
                 i + 1 >= inputlen ||
                 input[inputlen + 1] != '\r' ||
                 input[inputlen + 1] != '\n')) {
@@ -1014,7 +1015,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 break;
             }
         }
-        if (c != ' ' && c != '\t') {
+        if (c != ' ' && c != '\t' && i < inputlen) {
             currentlinehadnonwhitespace = 1;
             currentlinehadnonwhitespaceotherthanbullet = 1;
         }
