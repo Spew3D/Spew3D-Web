@@ -196,6 +196,24 @@ START_TEST(test_markdown_clean)
         assert(strcmp(result, "  > abc d\n    -----\n") == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "> abc d```a b\n abc\n  def```  bla\n", NULL
+        );
+        printf("test_markdown_clean result #12: <<%s>>\n", result);
+        assert(strcmp(result, "  > abc d\n    ```a\n    b\n"
+            "    abc\n     def\n    ```\n    bla\n") == 0);
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_Clean(
+            "> abc d```a b\n   abc\n   def```  bla\n", NULL
+        );
+        printf("test_markdown_clean result #13: <<%s>>\n", result);
+        assert(strcmp(result, "  > abc d\n    ```a\n    b\n     abc\n"
+            "     def\n    ```\n    bla\n") == 0);
+        free(result);
+    }
 }
 END_TEST
 

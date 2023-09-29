@@ -50,6 +50,34 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
 );
 
 
+S3DEXP char *spew3dweb_markdown_CleanByteBuf(
+    const char *inputstr, size_t input_len,
+    size_t *out_len, size_t *out_alloc
+);
+
+S3DEXP char *spew3dweb_markdown_Clean(
+    const char *inputstr, size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
+    const char *uncleaninput, size_t uncleaninputlen,
+    int opt_allowunsafehtml,
+    size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_ToHTML(
+    const char *uncleaninput,
+    int opt_allowunsafehtml, size_t *out_len
+);
+
+S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLength(
+    const char *block, size_t offset
+);
+
+S3DEXP int spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+    const char *block, size_t blocklen,
+    size_t offset
+);
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
     SPEW3DVFS_FILE *f,
@@ -88,26 +116,6 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
         out_len
     );
 }
-
-S3DEXP char *spew3dweb_markdown_CleanByteBuf(
-    const char *inputstr, size_t input_len,
-    size_t *out_len, size_t *out_alloc
-);
-
-S3DEXP char *spew3dweb_markdown_Clean(
-    const char *inputstr, size_t *out_len
-);
-
-S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
-    const char *uncleaninput, size_t uncleaninputlen,
-    int opt_allowunsafehtml,
-    size_t *out_len
-);
-
-S3DEXP char *spew3dweb_markdown_ToHTML(
-    const char *uncleaninput,
-    int opt_allowunsafehtml, size_t *out_len
-);
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
 

@@ -854,7 +854,44 @@ static int _linestandaloneheadingdepth(
     (_bufappend(&resultchunk, &resultalloc, &resultfill,\
     insertbuf, insertbuflen, 1))
 
-char *spew3dweb_markdown_CleanByteBuf(
+S3DEXP int spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+        const char *block, size_t blocklen,
+        size_t offset
+        ) {
+    size_t i = offset;
+    if (i >= blocklen || (
+            (block[i] < 'a' || block[i] > 'z') &&
+            (block[i] < 'A' || block[i] > 'Z') &&
+            block[i] <= 127))
+        return 0;
+    while (i < blocklen) {
+        if (block[i] == ' ' || block[i] == '\t' ||
+                block[i] == '\r' || block[i] == '\n') {
+            break;
+        }
+        if (block[i] < ' ' || block[i] == '`' ||
+                block[i] == '(' || block[i] == '[' ||
+                block[i] == ';' ||
+                block[i] == '|' ||
+                block[i] == '\'' ||
+                block[i] == '"' ||
+                block[i] == '<' ||
+                block[i] == '{')
+            return 0;
+        i += 1;
+    }
+    return i - offset;
+}
+
+S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLength(
+        const char *block, size_t offset
+        ) {
+    return spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+        block, strlen(block), offset
+    );
+}
+
+S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         size_t *out_len, size_t *out_alloc
         ) {
@@ -1025,7 +1062,7 @@ char *spew3dweb_markdown_CleanByteBuf(
         }
         if (c == '`' && i + 2 < inputlen &&
                 input[i + 1] == '`' && input[i + 2] == '`') {
-            // Make sure ``` always starts on new separate line.
+            // Parse ``` code block.
             int ticks = 3;
             i += 3;
             while (i < inputlen && input[i] == '`') {
@@ -1033,6 +1070,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 i += 1;
             }
             if (currentlinehadnonwhitespace) {
+                // Any opening ``` must be on separate line.
                 if (!INS("\n"))
                     return NULL;
                 if (!INSREP(" ", currentlineeffectiveindent))
@@ -1045,6 +1083,155 @@ char *spew3dweb_markdown_CleanByteBuf(
             currentlineisblockinterruptor = 1;
             currentlinehadlistbullet = 0;
             currentlinehadnonwhitespaceotherthanbullet = 1;
+            int insidecontentsstart = i;
+            int insidecontentsend = -1;
+            int langnamelen = (
+                spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+                    input, inputlen, i
+                )
+            );
+            if (langnamelen > 0) {
+                if (!INSBUF(input + i, langnamelen))
+                    return NULL;
+                i += langnamelen;
+                insidecontentsstart += langnamelen;
+            }
+            while (i < inputlen &&
+                    (input[i] == ' ' || input[i] == '\t')) {
+                i += 1;
+                insidecontentsstart += 1;
+            }
+
+            // Find inner content area, and find smallest indent:
+            // (We're scanning ahead, not writing results yet)
+            int isfirstinnerline = 1;
+            int firstinnerlineempty = 1;
+            int innerlinestart = i;
+            int innerlinecurrentindent = 0;
+            int smallestinnerindentseen = -1;
+            int nonwhitespaceoninnerline = 0;
+            int lastinnerlineisblank = 0;
+            while (i < inputlen) {
+                if (input[i] == '\r' || input[i] == '\n') {
+                    if (input[i] == '\r' &&
+                            i + 1 < inputlen &&
+                            input[i] == '\n')
+                        i += 1;
+                    i += 1;
+                    if (isfirstinnerline &&
+                            !nonwhitespaceoninnerline) {
+                        insidecontentsstart = i;
+                    }
+                    isfirstinnerline = 0;
+                    innerlinestart = i;
+                    nonwhitespaceoninnerline = 0;
+                    innerlinecurrentindent = 0;
+                    continue;
+                } else if (input[i] == ' ' &&
+                        !nonwhitespaceoninnerline) {
+                    innerlinecurrentindent += 1;
+                } else if (input[i] == '\t' &&
+                        !nonwhitespaceoninnerline) {
+                    innerlinecurrentindent += 4;
+                } else {
+                    if (!nonwhitespaceoninnerline &&
+                            !isfirstinnerline &&
+                            (smallestinnerindentseen < 0 ||
+                            innerlinecurrentindent <
+                            smallestinnerindentseen)) {
+                        smallestinnerindentseen = (
+                            innerlinecurrentindent
+                        );
+                    }
+                    nonwhitespaceoninnerline = 1;
+                    if (isfirstinnerline)
+                        firstinnerlineempty = 0;
+                }
+                if (input[i] == '`') {
+                    size_t i2 = i;
+                    while (i2 < inputlen && i2 < i + ticks &&
+                            input[i2] == '`')
+                        i2 += 1;
+                    if (i2 == i + ticks) {
+                        lastinnerlineisblank = (
+                            !nonwhitespaceoninnerline
+                        );
+                        insidecontentsend = i;
+                        i = i2;
+                        break;
+                    }
+                }
+                i += 1;
+            }
+            int needlinebreakpastticks = 0;
+            while (i < inputlen && (input[i] == ' ' ||
+                    input[i] == '\t'))
+                i += 1;
+            if (i < inputlen && input[i] != '\r' &&
+                    input[i] != '\n')
+                needlinebreakpastticks = 1;
+            // Now actually write out contents:
+            int addindentonwrite = 0;
+            if (smallestinnerindentseen >= 0 &&
+                    smallestinnerindentseen <
+                    currentlineorigindent)
+                addindentonwrite = (
+                    currentlineorigindent -
+                    smallestinnerindentseen
+                );
+            addindentonwrite += (
+                currentlineeffectiveindent -
+                currentlineorigindent
+            );
+            if (addindentonwrite < 0)
+                addindentonwrite = 0;
+            size_t i2 = insidecontentsstart;
+            if (!firstinnerlineempty) {
+                if (!INSC('\n'))
+                    return NULL;
+                if (!INSREP(" ", currentlineeffectiveindent))
+                    return NULL;
+            }
+            while (i2 < insidecontentsend) {
+                if (input[i2] == '\r' || input[i2] == '\n') {
+                    if (input[i2] == '\r' &&
+                            i2 < insidecontentsend &&
+                            input[i2] == '\n')
+                        i2 += 1;
+                    i2 += 1;
+                    if (!INSC('\n'))
+                        return NULL;
+                    if (!INSREP(" ", addindentonwrite))
+                        return NULL;
+                    continue;
+                } else if (input[i2] == '\0') {
+                    if (!INSC('?'))
+                        return NULL;
+                } else {
+                    if (!INSC(input[i2]))
+                        return NULL;
+                }
+                i2 += 1;
+            }
+            if (insidecontentsend < 0) insidecontentsend = inputlen;
+            if (!lastinnerlineisblank) {
+                if (!INSC('\n'))
+                    return NULL;
+                if (!INSREP(" ", currentlineeffectiveindent))
+                    return NULL;
+            }
+            i2 = 0;
+            while (i2 < ticks) {
+                if (!INSC('`'))
+                    return NULL;
+                i2 += 1;
+            }
+            if (needlinebreakpastticks) {
+                if (!INSC('\n'))
+                    return NULL;
+                if (!INSREP(" ", currentlineeffectiveindent))
+                    return NULL;
+            }
             continue;
         }
         if ((c == '-' || c == '=' || c == '#' ||
