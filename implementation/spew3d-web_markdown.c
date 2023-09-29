@@ -947,20 +947,32 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             *resultallocptr = resultalloc;
             return i;
         }
-        if (input[i] == '\\') {
+        if (input[i] == '\0') {
+            if (!INS("�"))
+                goto errorquit;
+            i += 1;
+            continue;
+        } else if (input[i] == '\\') {
             i += 1;
             if (i < inputlen) {
-                if (input[i] != '\n' &&
-                        input[i] != '\r') {
-                    if (!INSC('\\')) {
-                        errorquit: ;
-                        *resultchunkptr = resultchunk;
-                        *resultfillptr = resultfill;
-                        *resultallocptr = resultalloc;
-                        return -1;
+                if (input[i] == '\r' || input[i] == '\n' ||
+                        input[i] == '\0') {
+                    // Don't let the backslash character eat this!
+                    // Instead, bail out early and process on next loop.
+                    if (opt_escapeunambiguousentities) {
+                        // Double escape this to be unambiguous.
+                        if (!INS("\\")) {
+                            errorquit: ;
+                            *resultchunkptr = resultchunk;
+                            *resultfillptr = resultfill;
+                            *resultallocptr = resultalloc;
+                            return -1;
+                        }
                     }
+                    if (!INS("\\"))
+                        goto errorquit;
                     // Intentionally no i += 1 here.
-                    continue;  // Forward lbreak to next loop instead.
+                    continue;  // Parse char unescaped in next iteration.
                 }
                 if (input[i] == '<' &&
                         opt_escapeunambiguousentities) {
@@ -1323,7 +1335,7 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
 S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         const char *input, size_t inputlen,
         int opt_forcenolinebreaklinks,
-        int opt_forceescapeunambiguoushtmlentities,
+        int opt_forceescapeunambiguousentities,
         int opt_allowunsafehtml,
         size_t *out_len, size_t *out_alloc
         ) {
@@ -1637,7 +1649,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                         return NULL;
                     continue;
                 } else if (input[i2] == '\0') {
-                    if (!INSC('?'))
+                    if (!INS("�"))
                         return NULL;
                 } else {
                     if (!INSC(input[i2]))
@@ -1758,7 +1770,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 &resultchunk, &resultfill, &resultalloc,
                 currentlineorigindent, currentlineeffectiveindent,
                 opt_forcenolinebreaklinks,
-                opt_forceescapeunambiguoushtmlentities,
+                opt_forceescapeunambiguousentities,
                 opt_allowunsafehtml
             );
             if (i2 < 0)
@@ -1816,7 +1828,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             currentlinehadnonwhitespaceotherthanbullet = 1;
         }
         if (c == '\0' && i < inputlen) {
-            if (!INSC('?'))
+            if (!INS("�"))
                 return NULL;
         } else {
             if (!INSC(c))

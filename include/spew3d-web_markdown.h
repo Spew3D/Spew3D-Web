@@ -133,7 +133,7 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
 S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     const char *input, size_t inputlen,
     int opt_forcenolinebreaklinks,
-    int opt_forceescapeunambiguoushtmlentities,
+    int opt_forceescapeunambiguousentities,
     int opt_allowunsafehtml,
     size_t *out_len, size_t *out_alloc
 );

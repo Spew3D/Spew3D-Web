@@ -99,10 +99,10 @@ START_TEST(test_markdown_clean)
     char *result;
     {
         result = spew3dweb_markdown_Clean(
-            "\tabc\tdef\n  ", 1, NULL
+            "\tab \\n \\ [ c\tdef\n  ", 1, NULL
         );
         printf("test_markdown_clean result #0: <<%s>>\n", result);
-        assert(strcmp(result, "    abc\tdef\n") == 0);
+        assert(strcmp(result, "    ab \\n \\ \\[ c\tdef\n") == 0);
         free(result);
     }
     {
