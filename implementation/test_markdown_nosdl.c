@@ -228,7 +228,7 @@ START_TEST(test_markdown_tohtml)
     char *result;
     {
         result = spew3dweb_markdown_ToHTML(
-            "# abc\ndef", NULL
+            "# abc\ndef", 1, NULL
         );
         printf("test_markdown_tohtml result #0: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,

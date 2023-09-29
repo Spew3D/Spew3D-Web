@@ -100,11 +100,13 @@ S3DEXP char *spew3dweb_markdown_Clean(
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     const char *uncleaninput, size_t uncleaninputlen,
+    int opt_allowunsafehtml,
     size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_ToHTML(
-    const char *uncleaninput, size_t *out_len
+    const char *uncleaninput,
+    int opt_allowunsafehtml, size_t *out_len
 );
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
