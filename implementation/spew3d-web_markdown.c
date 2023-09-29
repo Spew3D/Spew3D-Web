@@ -644,8 +644,8 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     pos = bulletstartpos;  // Revert, since not a list.
 
     // This is not a list, and not code. Out-indent of list if non-empty:
-    if (pos >= buflen || buf[buflen - 1] == '\n' ||
-            buf[buflen - 1] == '\r') {
+    if (pos >= buflen || buf[pos] == '\n' ||
+            buf[pos] == '\r') {
         // It's empty, so keep current list going.
         *out_is_code = 0;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
@@ -662,20 +662,22 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     // See what list level we must out indent to:
     int list_nesting = 0;
     if (!lastlinewasemptyorblockinterruptor &&
-            (in_list_logical_nesting_depth <= 1 ||
-            indent_depth >
+            in_list_logical_nesting_depth >= 1 &&
+            indent_depth >=
             in_list_with_orig_indent_array[
-                in_list_logical_nesting_depth - 2
-            ])) {
+                in_list_logical_nesting_depth - 1
+            ]) {
         // Special case, since we're still further indented
         // than one layer "outside" of ours and glue to a
         // previous list entry with no empty line,
         // continue the list entry.
+        assert(indent_depth > 0);
         list_nesting = in_list_logical_nesting_depth;
     } else {
         // Find which list entry depth we still fit inside:
         int k = 0;
         while (k < in_list_logical_nesting_depth) {
+            assert(in_list_with_orig_indent_array[k] > 0);
             if (indent_depth <
                     in_list_with_orig_indent_array[k]) {
                 list_nesting = k - 1;
@@ -694,15 +696,17 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
             k += 1;
         }
     }
+    assert(list_nesting >= 0);
+    assert(indent_depth > 0 || list_nesting == 0);
     *out_is_code = 0;
     *out_is_in_list_depth = list_nesting;
     *out_orig_indent = (
-        in_list_logical_nesting_depth > 0 ?
+        list_nesting > 0 ?
         in_list_with_orig_indent_array[
-            in_list_logical_nesting_depth - 1] :
+            list_nesting - 1] :
         indent_depth);
     *out_effective_indent = (
-        in_list_logical_nesting_depth * 4
+        list_nesting * 4
     );
     *out_write_this_many_spaces = (
         (*out_effective_indent)
@@ -783,6 +787,55 @@ static int _getlastoutputlinelen(
         }
     }
     return len;
+}
+
+static int _lineonlycontinuouschar(
+        const char *input, size_t inputlen,
+        size_t linestart, char c
+        ) {
+    size_t i = linestart;
+    while (i < inputlen && (
+            input[i] == ' ' || input[i] == '\t'))
+        i += 1;
+    if (i >= inputlen || input[i] != c)
+        return 0;
+    while (i < inputlen && input[i] == c)
+        i += 1;
+    while (i < inputlen && (input[i] == ' ' ||
+            input[i] == '\t'))
+        i += 1;
+    if (i >= inputlen || (input[i] == '\n' ||
+            input[i] == '\t'))
+        return 1;
+    return 0;
+}
+
+static int _linestandaloneheadingdepth(
+        const char *input, size_t inputlen,
+        size_t linestart
+        ) {
+    size_t i = linestart;
+    while (i < inputlen && (
+            input[i] == ' ' || input[i] == '\t'))
+        i += 1;
+    if (i >= inputlen || input[i] != '#')
+        return 0;
+    int rating = 1;
+    i += 1;
+    while (i < inputlen && input[i] == '#') {
+        rating += 1;
+        i += 1;
+    }
+    if (i >= inputlen || input[i] != ' ')
+        return 0;
+    i += 1;
+    while (i < inputlen && (
+            input[i] == ' ' || input[i] == '\t'))
+        i += 1;
+    if (i >= inputlen || input[i] == '#' ||
+            input[i] == '\n' || input[i] == '\r')
+        return 0;
+    return rating;
 }
 
 #define INSC(insertchar) \
@@ -895,12 +948,40 @@ char *spew3dweb_markdown_CleanByteBuf(
                 input[i + out_content_start] == '\n' ||
                 input[i + out_content_start] == '\r')
             ));
+            assert(out_is_in_list_depth <= 0 || (
+                out_effective_indent > 0 &&
+                (out_write_this_many_spaces > 0 || isonlywhitespace)));
             if (isonlywhitespace) {
                 // It had only whitespace, that counts as empty.
                 assert(out_content_start > 0);
                 i += out_content_start;
                 lastlinewasemptyorblockinterruptor = 1;
                 continue;
+            }
+            assert(i + out_content_start < inputlen);
+            if (!lastlinewasemptyorblockinterruptor &&
+                    out_is_code && !lastnonemptylinewascodeindent &&
+                    resultfill > 0  // <- We had a previous line.
+                    ) {
+                // Some markdown interpreters hate if a regular text
+                // block is followed up by a 4 space code indent.
+                // Therefore, make sure to have a separating line.
+                if (!INS("\n"))
+                    return NULL;
+            } else if (!out_is_list_entry &&
+                    out_is_in_list_depth == 0 &&
+                    _linestandaloneheadingdepth(
+                        input, inputlen,
+                        i + out_content_start
+                    ) == 0 &&
+                    !_lineonlycontinuouschar(input, inputlen,
+                        i + out_content_start, '-') &&
+                    lastlinehadlistbullet) {
+                // Some markdown interpreters will treat a significant
+                // dedent breaking out of a list item visually still
+                // as a continuation, so insert spacing here.
+                if (!INS("\n"))
+                    return NULL;
             }
             lastlinewasemptyorblockinterruptor = 0;
             if (!INSREP(" ", out_write_this_many_spaces))
@@ -942,70 +1023,86 @@ char *spew3dweb_markdown_CleanByteBuf(
                 // We skipped forward, so restart iteration:
                 continue;
         }
+        if (c == '`' && i + 2 < inputlen &&
+                input[i + 1] == '`' && input[i + 2] == '`') {
+            // Make sure ``` always starts on new separate line.
+            int ticks = 3;
+            i += 3;
+            while (i < inputlen && input[i] == '`') {
+                ticks += 1;
+                i += 1;
+            }
+            if (currentlinehadnonwhitespace) {
+                if (!INS("\n"))
+                    return NULL;
+                if (!INSREP(" ", currentlineeffectiveindent))
+                    return NULL;
+                lastlinehadlistbullet = currentlinehadlistbullet;
+            }
+            if (!INSREP("`", ticks))
+                return NULL;
+            currentlinehadnonwhitespace = 1;
+            currentlineisblockinterruptor = 1;
+            currentlinehadlistbullet = 0;
+            currentlinehadnonwhitespaceotherthanbullet = 1;
+            continue;
+        }
         if ((c == '-' || c == '=' || c == '#' ||
                 c == '*') && (
                 !currentlinehadnonwhitespace || (
                 currentlinehadlistbullet &&
                 !currentlinehadnonwhitespaceotherthanbullet
                 ))) {
-            if (c == '#') {
-                // Check if it's a heading using style: # some text...
+            int _heading_rating_if_any = 0;
+            if (c == '#' &&
+                    (_heading_rating_if_any =
+                        _linestandaloneheadingdepth(
+                            input, inputlen, i
+                        )) > 0) {
+                // It's a heading using style: # TITLE
+                // Skip past the hashtags and spacing.
                 int headingnest = 1;
                 int i2 = i + 1;
                 while (i2 < inputlen && input[i2] == '#') {
                     headingnest += 1;
                     i2 += 1;
                 }
-                if (i2 < inputlen &&
-                        input[i2] == ' ' || input[i2] == '\t') {
-                    while (i2 < inputlen && (
-                            input[i2] == ' ' ||
-                            input[i2] == '\t'))
-                        i2 += 1;
-                    int contentstart = i2;
-                    if (i2 < inputlen &&
-                            input[i2] != '\n' &&
-                            input[i2] != '\r' &&
-                            input[i2] != ' ') {
-                        // It's a heading!
-                        if (!INSREP("#", headingnest))
-                            return NULL;
-                        if (!INS(" "))
-                            return NULL;
-                        i = i2;
-                        continue;
-                    }
-                }
-                // If we fall through to here, not a # style heading.
+                while (i2 < inputlen && (
+                        input[i2] == ' ' ||
+                        input[i2] == '\t'))
+                    i2 += 1;
+                int contentstart = i2;
+                if (!INSREP("#", headingnest))
+                    return NULL;
+                if (!INS(" "))
+                    return NULL;
+                i = i2;
+                continue;
             }
             if (c != '*' && c != '#' &&
-                    !_getlastlinetrulyempty(resultchunk, resultfill) &&
+                    !lastlinewasemptyorblockinterruptor &&
                     currentlineorigindent ==
-                    lastnonemptylineorigindent) {
-                // It's possibly a heading, === or --- style:
-                int i2 = i + 1;
-                while (i2 < inputlen &&
-                        input[i2] == c)
-                    i2 += 1;
-                while (i2 < inputlen &&
-                        (input[i2] == ' ' || input[i2] == '\t'))
-                    i2 += 1;
-                if (i2 >= inputlen ||
-                        input[i2] == '\n' ||
-                        input[i2] == '\r') {
-                    // Confirmed heading. Output it, but fixed up:
-                    i = i2;
-                    currentlineisblockinterruptor = 1;
-                    lastlinewasemptyorblockinterruptor = 1;
-                    char heading[2] = {0};
-                    heading[0] = c;
-                    if (!INSREP(heading, _getlastoutputlinelen(
-                            resultchunk, resultfill, 1,
-                            lastlinehadlistbullet
-                            )))
-                        return NULL;
-                    continue;
-                }
+                    lastnonemptylineorigindent &&
+                    !_getlastlinetrulyempty(resultchunk, resultfill) &&
+                    ((c == '-' && _lineonlycontinuouschar(
+                        input, inputlen, i, '-')) ||
+                    (c == '=' && _lineonlycontinuouschar(
+                        input, inputlen, i, '=')))) {
+                // It's a heading, === or --- style:
+                while (i < inputlen &&
+                        input[i] != '\n' &&
+                        input[i] != '\r')
+                    i += 1;
+                currentlineisblockinterruptor = 1;
+                lastlinewasemptyorblockinterruptor = 1;
+                char heading[2] = {0};
+                heading[0] = c;
+                if (!INSREP(heading, _getlastoutputlinelen(
+                        resultchunk, resultfill, 1,
+                        lastlinehadlistbullet
+                        )))
+                    return NULL;
+                continue;
             }
             if (c != '#' && i + 2 < inputlen &&
                     input[i + 1] == c &&
@@ -1045,6 +1142,7 @@ char *spew3dweb_markdown_CleanByteBuf(
             // If line written so far wasn't empty, remember indent:
             if (resultfill > 0 &&
                     resultchunk[resultfill - 1] != '\n') {
+                // This line wasn't empty.
                 lastnonemptylineeffectiveindent = (
                     currentlineeffectiveindent
                 );
@@ -1057,6 +1155,7 @@ char *spew3dweb_markdown_CleanByteBuf(
                 if (!currentlineisblockinterruptor)
                     lastlinewasemptyorblockinterruptor = 0;
             } else {
+                lastlinehadlistbullet = 0;
                 lastlinewasemptyorblockinterruptor = 1;
             }
             currentlinehadnonwhitespace = 0;
