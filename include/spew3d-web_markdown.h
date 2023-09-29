@@ -52,11 +52,13 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
 
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
     const char *inputstr, size_t input_len,
+    int opt_allowunsafehtml,
     size_t *out_len, size_t *out_alloc
 );
 
 S3DEXP char *spew3dweb_markdown_Clean(
-    const char *inputstr, size_t *out_len
+    const char *inputstr, int opt_allowunsafehtml,
+    size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
@@ -131,6 +133,8 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
 S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     const char *input, size_t inputlen,
     int opt_forcenolinebreaklinks,
+    int opt_forceescapeunambiguoushtmlentities,
+    int opt_allowunsafehtml,
     size_t *out_len, size_t *out_alloc
 );
 
@@ -142,6 +146,15 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     int *out_prefix_url_linebreak_to_maintain_formatting,
     int *out_img_width, int *out_img_height
 );
+
+S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
+    const char *input, size_t inputlen, size_t startpos,
+    char **resultchunkptr, size_t *resultfillptr,
+    size_t *resultallocptr, int origindent, int effectiveindent,
+    int opt_forcelinksoneline,
+    int opt_escapeunambiguousentities,
+    int opt_allowunsafehtml
+ );
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
 

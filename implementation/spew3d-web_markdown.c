@@ -893,10 +893,12 @@ S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
 
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
+        int opt_allowunsafehtml,
         size_t *out_len, size_t *out_alloc
         ) {
     return _internal_spew3dweb_markdown_CleanByteBufEx(
-        input, inputlen, 0, out_len, out_alloc
+        input, inputlen, 0, 0, opt_allowunsafehtml,
+        out_len, out_alloc
     );
 }
 
@@ -922,11 +924,12 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
     return (len == test_str_len);
 }
 
-S3DHID ssize_t _internal_spew3dweb_markdown_AddInternalAreaClean(
+S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         const char *input, size_t inputlen, size_t startpos,
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr, int origindent, int effectiveindent,
         int opt_forcelinksoneline,
+        int opt_escapeunambiguousentities,
         int opt_allowunsafehtml
         ) {
     char *resultchunk = *resultchunkptr;
@@ -935,9 +938,57 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInternalAreaClean(
 
     size_t i = startpos;
     while (i < inputlen) {
-        if (input[i] == '\n' || input[i] == '\r')
+        if (input[i] == '\n' || input[i] == '\r' ||
+                (input[i] == '`' && i + 2 < inputlen &&
+                input[i + 1] == '`' &&
+                input[i + 2] == '`')) {
+            *resultchunkptr = resultchunk;
+            *resultfillptr = resultfill;
+            *resultallocptr = resultalloc;
             return i;
-        if (input[i] == '&') {
+        }
+        if (input[i] == '\\') {
+            i += 1;
+            if (i < inputlen) {
+                if (input[i] != '\n' &&
+                        input[i] != '\r') {
+                    if (!INSC('\\')) {
+                        errorquit: ;
+                        *resultchunkptr = resultchunk;
+                        *resultfillptr = resultfill;
+                        *resultallocptr = resultalloc;
+                        return -1;
+                    }
+                    // Intentionally no i += 1 here.
+                    continue;  // Forward lbreak to next loop instead.
+                }
+                if (input[i] == '<' &&
+                        opt_escapeunambiguousentities) {
+                    if (!INS("&lt;"))
+                        goto errorquit;
+                } else if (input[i] == '>' &&
+                        opt_escapeunambiguousentities) {
+                    if (!INS("&gt;"))
+                        goto errorquit;
+                } else if (input[i] == '&' &&
+                        opt_escapeunambiguousentities) {
+                    if (!INS("&amp;"))
+                        goto errorquit;
+                } else {
+                    if (!INSC('\\'))
+                        goto errorquit;
+                    if (!INSC(input[i]))
+                        goto errorquit;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        if (input[i] == '&' && (opt_escapeunambiguousentities ||
+                (i + 1 < inputlen &&
+                ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
+                (input[i + 1] >= 'A' && input[i + 1] <= 'Z') ||
+                input[i + 1] == '#')))) {
             size_t i2 = i + 1;
             while (i2 < inputlen && i2 < i + 15 &&
                     ((input[i] >= 'a' && input[i] <= 'z') ||
@@ -945,10 +996,62 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInternalAreaClean(
                 i2++;
             if (i2 >= inputlen || input[i2] != ';') {
                 if (!INS("&amp;"))
-                    return -1;
+                    goto errorquit;
             } else {
                 if (!INSC('&'))
-                    return -1;
+                    goto errorquit;
+            }
+            i += 1;
+            continue;
+        }
+        if (input[i] == '>' && (opt_escapeunambiguousentities ||
+                i <= 0 ||
+                ((input[i] >= 'a' && input[i] <= 'z') ||
+                    (input[i] >= 'A' && input[i] <= 'Z')))) {
+            if (!INS("&gt;"))
+                goto errorquit;
+            i += 1;
+            continue;
+        }
+        if (input[i] == '<' && (opt_escapeunambiguousentities ||
+                (i + 1 < inputlen &&
+                ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
+                (input[i + 1] >= 'A' && input[i + 1] <= 'Z') ||
+                input[i + 1] == '#')))) {
+            // Potentially a HTML tag, otherwise needs escaping:
+            int endtagidx = -1;
+            if (i + 1 < inputlen && opt_allowunsafehtml) {
+                size_t i2 = i + 1;
+                if ((input[i2] >= 'a' && input[i2] <= 'z') ||
+                        (input[i2] >= 'A' && input[i2] <= 'Z')) {
+                    while (i2 < inputlen && i2 < i + 15 && (
+                            input[i2] == '-' &&
+                            ((input[i2] >= 'a' &&
+                                input[i2] <= 'z')) ||
+                            ((input[i2] >= 'A' &&
+                                input[i2] <= 'Z'))))
+                        i2++;
+                    if (i2 < inputlen && (input[i] == ' ' ||
+                            input[i2] == '>')) {
+                        // Likely a tag, find the end:
+                        while (i2 < inputlen &&
+                                input[i2] != '>' &&
+                                input[i2] != '<')
+                            i2++;
+                        if (i2 < inputlen && input[i2] == '>')
+                            endtagidx = i2;
+                    }
+                }
+            }
+            if (endtagidx < 0 && !INS("&lt;")) {
+                goto errorquit;
+            } else if (endtagidx >= 0) {
+                if (!INSBUF(input + i,
+                        (endtagidx - i) + 1)) {
+                    goto errorquit;
+                }
+                i = endtagidx + 1;
+                continue;
             }
             i += 1;
             continue;
@@ -965,9 +1068,32 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInternalAreaClean(
                 &prefix_url_linebreak_to_keep_formatting,
                 &imgwidth, &imgheight
             );
+            if (i2 < 0 || 1) {
+                if (input[i] == '!') {
+                    if (!INS("\\!"))
+                        goto errorquit;
+                    i += 1;
+                    if (i < inputlen && input[i] == '[') {
+                        if (!INS("\\["))
+                            goto errorquit;
+                        i += 1;
+                    }
+                    continue;
+                }
+                assert(input[i] == '[');
+                if (!INS("\\["))
+                    goto errorquit;
+                i += 1;
+                continue;
+            }
         }
+        if (!INSC(input[i]))
+            goto errorquit;
         i += 1;
     }
+    *resultchunkptr = resultchunk;
+    *resultfillptr = resultfill;
+    *resultallocptr = resultalloc;
     return inputlen;
 }
 
@@ -1197,6 +1323,8 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
 S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         const char *input, size_t inputlen,
         int opt_forcenolinebreaklinks,
+        int opt_forceescapeunambiguoushtmlentities,
+        int opt_allowunsafehtml,
         size_t *out_len, size_t *out_alloc
         ) {
     char *resultchunk = NULL;
@@ -1623,6 +1751,22 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 }
             }
         }
+        if (c != '\r' && c != '\n' && i < inputlen) {
+            // Handle with advanced inline formatting:
+            ssize_t i2 = _internal_spew3dweb_markdown_AddInlineAreaClean(
+                input, inputlen, i,
+                &resultchunk, &resultfill, &resultalloc,
+                currentlineorigindent, currentlineeffectiveindent,
+                opt_forcenolinebreaklinks,
+                opt_forceescapeunambiguoushtmlentities,
+                opt_allowunsafehtml
+            );
+            if (i2 < 0)
+                return NULL;
+            assert(i2 > i);
+            i = i2;
+            continue;
+        }
         if (c == '\r' || c == '\n' ||
                 i >= inputlen) {
             // Remove trailing indent from line written so far:
@@ -1687,11 +1831,12 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
 }
 
 S3DEXP char *spew3dweb_markdown_Clean(
-        const char *inputstr, size_t *out_len
+        const char *inputstr, int opt_allowunsafehtml,
+        size_t *out_len
         ) {
     return spew3dweb_markdown_CleanByteBuf(
         inputstr, strlen(inputstr),
-        out_len, NULL
+        opt_allowunsafehtml, out_len, NULL
     );
 }
 
@@ -1765,66 +1910,8 @@ static int _spew3d_markdown_process_inline_content(
         size_t ipastend = lineinfo[iline].indentedcontentlen;
         const char *linebuf = lineinfo[iline].linestart;
         while (i < ipastend) {
-            if (linebuf[i] == '&') {
-                // Check if this is a HTML entity or needs escaping:
-                int needsescape = 1;
-                if (i + 1 < ipastend && !as_code) {
-                    size_t i2 = i + 1;
-                    while (i2 < ipastend && i2 < i + 15 && (
-                            ((linebuf[i2] >= 'a' &&
-                                linebuf[i2] <= 'z')) ||
-                            ((linebuf[i2] >= 'A' &&
-                                linebuf[i2] <= 'Z'))))
-                        i2++;
-                    if (i2 < ipastend && linebuf[i2] == ';')
-                        needsescape = 0;
-                }
-                if (needsescape && !INS("&amp;"))
-                    goto errorquit;
-                else if (!needsescape && !INSC('&'))
-                    goto errorquit;
-            } else if (linebuf[i] == '<') {
-                // Potentially a HTML tag, otherwise needs escaping:
-                int endtagidx = -1;
-                if (i + 1 < ipastend && !as_code) {
-                    size_t i2 = i + 1;
-                    if ((linebuf[i2] >= 'a' && linebuf[i2] <= 'z') ||
-                            (linebuf[i2] >= 'A' && linebuf[i2] <= 'Z')) {
-                        while (i2 < ipastend && i2 < i + 15 && (
-                                linebuf[i2] == '-' &&
-                                ((linebuf[i2] >= 'a' &&
-                                    linebuf[i2] <= 'z')) ||
-                                ((linebuf[i2] >= 'A' &&
-                                    linebuf[i2] <= 'Z'))))
-                            i2++;
-                        if (i2 < ipastend && (linebuf[i] == ' ' ||
-                                linebuf[i2] == '>')) {
-                            // Likely a tag, find the end:
-                            while (i2 < ipastend &&
-                                    linebuf[i2] != '>' &&
-                                    linebuf[i2] != '<')
-                                i2++;
-                            if (i2 < ipastend && linebuf[i2] == '>')
-                                endtagidx = i2;
-                        }
-                    }
-                }
-                if (endtagidx < 0 && !INS("&lt;")) {
-                    goto errorquit;
-                } else if (endtagidx >= 0) {
-                    if (!INSBUF(linebuf + i,
-                            (endtagidx - i) + 1)) {
-                        goto errorquit;
-                    }
-                    i = endtagidx;
-                }
-            } else if (linebuf[i] == '>') {  // Escape this always.
-                if (!INS("&gt;"))
-                    goto errorquit;
-            } else {
-                if (!INSC(linebuf[i]))
-                    goto errorquit;
-            }
+            if (!INSC(linebuf[i]))
+                goto errorquit;
             i += 1;
         }
         iline += 1;
@@ -1843,9 +1930,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         ) {
     // First, clean up the input:
     size_t inputlen = 0;
-    char *input = spew3dweb_markdown_CleanByteBuf(
-        uncleaninput, uncleaninputlen, &inputlen,
-        NULL
+    char *input = _internal_spew3dweb_markdown_CleanByteBufEx(
+        uncleaninput, uncleaninputlen,
+        1, 1, opt_allowunsafehtml,
+        &inputlen, NULL
     );
     if (!input)
         return NULL;
