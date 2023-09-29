@@ -854,7 +854,7 @@ static int _linestandaloneheadingdepth(
     (_bufappend(&resultchunk, &resultalloc, &resultfill,\
     insertbuf, insertbuflen, 1))
 
-S3DEXP int spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+S3DEXP int spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
         const char *block, size_t blocklen,
         size_t offset
         ) {
@@ -883,16 +883,253 @@ S3DEXP int spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
     return i - offset;
 }
 
-S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLength(
+S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
         const char *block, size_t offset
         ) {
-    return spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+    return spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
         block, strlen(block), offset
     );
 }
 
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
+        size_t *out_len, size_t *out_alloc
+        ) {
+    return _internal_spew3dweb_markdown_CleanByteBufEx(
+        input, inputlen, 0, out_len, out_alloc
+    );
+}
+
+S3DEXP int spew3dweb_markdown_IsStrUrl(const char *test_str) {
+    size_t test_str_len = strlen(test_str);
+    if (test_str_len <= 0 || test_str[0] != '[')
+        return 0;
+    int len = _internal_spew3dweb_markdown_GetLinkImgLen(
+        test_str, test_str_len, 0,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    );
+    return (len == test_str_len);
+}
+
+S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
+    size_t test_str_len = strlen(test_str);
+    if (test_str_len <= 0 || test_str[0] != '!')
+        return 0;
+    int len = _internal_spew3dweb_markdown_GetLinkImgLen(
+        test_str, test_str_len, 0,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL
+    );
+    return (len == test_str_len);
+}
+
+S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
+        const char *input, size_t inputlen,
+        size_t offset, char closebracket,
+        int *out_spacingstart, int *out_spacingend
+        ) {
+    int isurl = (closebracket == ')');
+    int isinlinecode = (closebracket == '`');
+    int roundbracketnest = 0;
+    int squarebracketnest = 0;
+    int curlybracketnest = 0;
+    int sawslash = 0;
+    size_t i = offset;
+    int isfirstline = 1;
+    int currentlyemptyline = 1;
+    while (i < inputlen && (input[i] != closebracket ||
+            roundbracketnest > 0 ||
+            squarebracketnest > 0 ||
+            curlybracketnest > 0)) {
+        int wascurrentlyemptyline = currentlyemptyline;
+        if (input[i] == '\r' || input[i] == '\n') {
+            if (currentlyemptyline && !isfirstline)
+                // Line break on empty line? Looks invalid, bail.
+                return -1;
+            if (isinlinecode)
+                // Not allowed in inline code.
+                return -1;
+            if (input[i] == '\r' && i + 1 < inputlen &&
+                    input[i] == '\n')
+                i += 1;
+            i += 1;
+            isfirstline = 0;
+            currentlyemptyline = 1;
+            continue;
+        }
+        if (input[i] != ' ' && input[i] != '\t')
+            currentlyemptyline = 0;
+
+        if ((input[i] == '-' || input[i] == '=') &&
+                wascurrentlyemptyline && !isinlinecode &&
+                _lineonlycontinuouschar(
+                    input, inputlen, i, input[i]
+                ))
+            // Looks like a --- or === header.
+            return -1;
+        if (input[i] == '#' && i + 1 < inputlen &&
+                wascurrentlyemptyline && !isinlinecode &&
+                (input[i + 1] == ' ' || input[i + 1] == '\t' ||
+                input[i + 1] == '#'))
+            // Looks like a # ..text.. header.
+            return -1;
+        if (input[i] == ' ' && i + 2 < inputlen && isurl &&
+                input[i + 1] == ' ' && !currentlyemptyline &&
+                (input[i + 2] != ' ' && input[i + 2] != '\t' &&
+                input[i + 2] != '\r' && input[i + 2] != '\n'))
+            // Odd long spacing in an URL -> probably not an URL.
+            return -1;
+        if (isurl && (input[i] == '<' || input[i] == '>'))
+            return -1;
+        if (input[i] == '/')
+            sawslash = 1;
+        if ((input[i] == '(' || input[i] == '[') &&
+                isurl && !sawslash &&
+                (i == offset || input[i - 1] == ' ' ||
+                input[i - 1] == '\t' ||
+                input[i - 1] == '\r' ||
+                input[i - 1] == '\n'))
+            // Looks more like text than an URL, doesn't it?
+            return -1;
+        if (isurl && input[i] == '(') roundbracketnest += 1;
+        if (isurl && input[i] == '[') squarebracketnest += 1;
+        if (isurl && input[i] == '{') curlybracketnest += 1;
+        if (isurl && input[i] == ')') roundbracketnest -= 1;
+        if (isurl && input[i] == ']') squarebracketnest -= 1;
+        if (isurl && input[i] == '}') curlybracketnest -= 1;
+        if (roundbracketnest < 0 ||
+                squarebracketnest < 0 ||
+                curlybracketnest < 0)
+            return -1;
+        if (input[i] == '`' && i + 2 < inputlen &&
+                input[i + 1] == '`' && input[i + 2] == '`')
+            // We ran into a code block element, looks invalid, bail.
+            return -1;
+        if (input[i] == '|' && !isinlinecode && (
+                input[i - 1] == ' ' || input[i - 1] == '\r' ||
+                input[i - 1] == '\t') && input[i + 1] == '-')
+            // Looks like we ran into a markdown table, bail.
+            return -1;
+        if (!isurl && !isinlinecode && (
+                (closebracket == ']' && input[i] == '[')))
+            // Title bracket inside a bracket? Probably not valid.
+            return -1;
+        if (input[i] == '\\' && !isurl && !isinlinecode &&
+                i < inputlen &&
+                (input[i + 1] == '[' ||
+                input[i + 1] == ']' || input[i + 1] == '|')) {
+            // Escaped item in title is fine.
+            i += 2;
+            continue;
+        }
+        i += 1;
+    }
+    if (i >= inputlen || input[i] != closebracket)
+        return -1;
+    size_t endbracketidx = i;
+
+    size_t spacing_start = 0;
+    size_t spacing_end = 0;
+    i = offset;
+    while (i < inputlen && (input[i] == ' ' ||
+            input[i] == '\t' || input[i] == '\r' ||
+            input[i] == '\n')) {
+        spacing_start += 1;
+        i += 1;
+    }
+    i = endbracketidx;
+    while (i >= 0 && (input[i] == ' ' ||
+            input[i] == '\t' || input[i] == '\r' ||
+            input[i] == '\n')) {
+        spacing_end += 1;
+        i -= 1;
+    }
+    if (spacing_start + spacing_end > (endbracketidx - offset)) {
+        // Empty contents.
+        assert(spacing_start >= (endbracketidx - offset));
+        spacing_end = 0;
+    }
+    if (out_spacingstart) *out_spacingstart = spacing_start;
+    if (out_spacingend) *out_spacingend = spacing_end;
+    return i;
+}
+
+S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
+        const char *input, size_t inputlen, size_t offset,
+        int *out_title_start, int *out_title_len,
+        int *out_url_start, int *out_url_end,
+        int *out_prefix_url_linebreak_to_maintain_formatting,
+        int *out_img_width, int *out_img_height
+        ) {
+    int title_start, title_pastend,
+        url_start, url_pastend;
+
+    size_t i = offset;
+    if (i >= inputlen || (
+            input[i] != '[' && input[i] != '!'))
+        return 0;
+    int isimg = (input[i] == '!');
+    if (isimg)
+        i += 1;
+
+    if (i >= inputlen || input[i] != '[')
+        return 0;
+    i += 1;
+    title_start = i;
+    int title_spacing_start = 0;
+    int title_spacing_end = 0;
+    title_pastend = _internal_spew3dweb_markdown_GetInlineEndBracket(
+        input, inputlen, i, ']',
+        &title_spacing_start, &title_spacing_end
+    );
+    if (title_pastend < 0)
+        return 0;
+    i = title_pastend;
+    assert(title_pastend < 0 || (title_pastend >= title_start &&
+        input[title_pastend] == ']'));
+    title_pastend -= title_spacing_end;
+    assert(title_pastend >= title_start);
+    i += 1;
+
+    int prefix_url_linebreak_to_maintain_formatting = 0;
+    if (i < inputlen && input[i] != '(') {
+        // We only allow this if there follows a line break,
+        // and the URL part is the first thing in the next line.
+        while (i < inputlen && (
+                input[i] == ' ' || input[i] == '\t'))
+            i += 1;
+        if (i >= inputlen || (input[i] != '\n' &&
+                input[i] != '\r'))
+            return 0;
+        i += 1;
+        while (i < inputlen && (
+                input[i] == ' ' || input[i] == '\t'))
+            i += 1;
+    }
+
+    if (i >= inputlen || input[i] != '(')
+        return 0;
+    i += 1;
+    url_start = i;
+    int url_spacing_start = 0;
+    int url_spacing_end = 0;
+    url_pastend = _internal_spew3dweb_markdown_GetInlineEndBracket(
+        input, inputlen, i, ')',
+        &url_spacing_start, &url_spacing_end
+    );
+    if (url_pastend < 0)
+        return 0;
+    i = url_pastend;
+    assert(url_pastend < 0 || (url_pastend >= url_start &&
+        input[url_pastend] == ')'));
+    url_pastend -= url_spacing_end;
+    assert(url_pastend >= url_start);
+    i += 1;
+    return (i - offset);
+}
+
+S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
+        const char *input, size_t inputlen,
+        int opt_forcenolinebreaklinks,
         size_t *out_len, size_t *out_alloc
         ) {
     char *resultchunk = NULL;
@@ -1086,7 +1323,7 @@ S3DEXP char *spew3dweb_markdown_CleanByteBuf(
             int insidecontentsstart = i;
             int insidecontentsend = -1;
             int langnamelen = (
-                spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+                spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
                     input, inputlen, i
                 )
             );

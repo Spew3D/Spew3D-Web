@@ -70,13 +70,23 @@ S3DEXP char *spew3dweb_markdown_ToHTML(
     int opt_allowunsafehtml, size_t *out_len
 );
 
-S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLength(
+S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
     const char *block, size_t offset
 );
 
-S3DEXP int spew3dweb_markdown_GetBacktickBytesBufLangPrefixLength(
+S3DEXP int spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
     const char *block, size_t blocklen,
     size_t offset
+);
+
+S3DEXP int spew3dweb_markdown_IsStrUrl(const char *test_str);
+
+S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str);
+
+S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
+    const char *input, size_t inputlen,
+    size_t offset, char closebracket,
+    int *out_spacingstart, int *out_spacingend
 );
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
@@ -116,6 +126,20 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
         out_len
     );
 }
+
+S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
+    const char *input, size_t inputlen,
+    int opt_forcenolinebreaklinks,
+    size_t *out_len, size_t *out_alloc
+);
+
+S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
+    const char *input, size_t inputlen, size_t offset,
+    int *out_title_start, int *out_title_len,
+    int *out_url_start, int *out_url_end,
+    int *out_prefix_url_linebreak_to_maintain_formatting,
+    int *out_img_width, int *out_img_height
+);
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
 

@@ -217,6 +217,47 @@ START_TEST(test_markdown_clean)
 }
 END_TEST
 
+START_TEST(test_is_url_and_is_image)
+{
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[abc](abc def)"
+    ));
+    assert(spew3dweb_markdown_IsStrImage(
+        "![abc](abc def)"
+    ));
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[abc](\nabc def)"
+    ));
+    assert(!spew3dweb_markdown_IsStrUrl(
+        "[abc](\n\nabc def)"
+    ));
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[ abc ] \n  ( abc def )"
+    ));
+    assert(!spew3dweb_markdown_IsStrUrl(
+        "[abc](abc  def)"
+    ));
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[abc](a/bc( d)ef)"
+    ));
+    assert(!spew3dweb_markdown_IsStrUrl(
+        "[abc](abc ( d)ef)"
+    ));
+    assert(!spew3dweb_markdown_IsStrUrl(
+        "[abc](abc(def)"
+    ));
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[abc](abc[d]ef)"
+    ));
+    assert(spew3dweb_markdown_IsStrUrl(
+        "[ **formatting test** <i>abc</i>](abc def)"
+    ));
+    assert(!spew3dweb_markdown_IsStrUrl(
+        "[abc\n---\n](abc def)"
+    ));
+}
+END_TEST
+
 static int _s3dw_check_html_same(const char *p1, const char *p2) {
     int previous_p1_was_tagclose = 0;
     int previous_p2_was_tagclose = 0;
@@ -281,5 +322,5 @@ START_TEST(test_markdown_tohtml)
 END_TEST
 
 TESTS_MAIN(test_markdown_chunks, test_markdown_clean,
-    test_markdown_tohtml)
+    test_markdown_tohtml, test_is_url_and_is_image)
 
