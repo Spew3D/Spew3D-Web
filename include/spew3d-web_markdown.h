@@ -86,6 +86,7 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str);
 S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
     const char *input, size_t inputlen,
     size_t offset, char closebracket,
+    int opt_trim_linebreaks_from_content,
     int *out_spacingstart, int *out_spacingend
 );
 
@@ -135,8 +136,9 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
 
 S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     const char *input, size_t inputlen, size_t offset,
+    int trim_linebreaks_from_content,
     int *out_title_start, int *out_title_len,
-    int *out_url_start, int *out_url_end,
+    int *out_url_start, int *out_url_len,
     int *out_prefix_url_linebreak_to_maintain_formatting,
     int *out_img_width, int *out_img_height
 );

@@ -905,7 +905,7 @@ S3DEXP int spew3dweb_markdown_IsStrUrl(const char *test_str) {
     if (test_str_len <= 0 || test_str[0] != '[')
         return 0;
     int len = _internal_spew3dweb_markdown_GetLinkImgLen(
-        test_str, test_str_len, 0,
+        test_str, test_str_len, 0, 0,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
     return (len == test_str_len);
@@ -916,15 +916,65 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
     if (test_str_len <= 0 || test_str[0] != '!')
         return 0;
     int len = _internal_spew3dweb_markdown_GetLinkImgLen(
-        test_str, test_str_len, 0,
+        test_str, test_str_len, 0, 0,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
     return (len == test_str_len);
 }
 
+S3DHID ssize_t _internal_spew3dweb_markdown_AddInternalAreaClean(
+        const char *input, size_t inputlen, size_t startpos,
+        char **resultchunkptr, size_t *resultfillptr,
+        size_t *resultallocptr, int origindent, int effectiveindent,
+        int opt_forcelinksoneline,
+        int opt_allowunsafehtml
+        ) {
+    char *resultchunk = *resultchunkptr;
+    size_t resultfill = *resultfillptr;
+    size_t resultalloc = *resultallocptr;
+
+    size_t i = startpos;
+    while (i < inputlen) {
+        if (input[i] == '\n' || input[i] == '\r')
+            return i;
+        if (input[i] == '&') {
+            size_t i2 = i + 1;
+            while (i2 < inputlen && i2 < i + 15 &&
+                    ((input[i] >= 'a' && input[i] <= 'z') ||
+                    (input[i] >= 'A' && input[i] <= 'Z')))
+                i2++;
+            if (i2 >= inputlen || input[i2] != ';') {
+                if (!INS("&amp;"))
+                    return -1;
+            } else {
+                if (!INSC('&'))
+                    return -1;
+            }
+            i += 1;
+            continue;
+        }
+        if (input[i] == '!' || input[i] == '[') {
+            int title_start, title_end;
+            int url_start, url_end;
+            int prefix_url_linebreak_to_keep_formatting = 0;
+            int imgwidth, imgheight;
+            int i2 = _internal_spew3dweb_markdown_GetLinkImgLen(
+                input, inputlen, i, opt_forcelinksoneline,
+                &title_start, &title_end,
+                &url_start, &url_end,
+                &prefix_url_linebreak_to_keep_formatting,
+                &imgwidth, &imgheight
+            );
+        }
+        i += 1;
+    }
+    return inputlen;
+}
+
 S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
         const char *input, size_t inputlen,
         size_t offset, char closebracket,
+        int opt_trim_linebreaks_from_content,
         int *out_spacingstart, int *out_spacingend
         ) {
     int isurl = (closebracket == ')');
@@ -1055,9 +1105,10 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
 
 S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
         const char *input, size_t inputlen, size_t offset,
+        int opt_trim_linebreaks_from_content,
         int *out_title_start, int *out_title_len,
-        int *out_url_start, int *out_url_end,
-        int *out_prefix_url_linebreak_to_maintain_formatting,
+        int *out_url_start, int *out_url_len,
+        int *out_prefix_url_linebreak_to_keep_formatting,
         int *out_img_width, int *out_img_height
         ) {
     int title_start, title_pastend,
@@ -1078,7 +1129,7 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     int title_spacing_start = 0;
     int title_spacing_end = 0;
     title_pastend = _internal_spew3dweb_markdown_GetInlineEndBracket(
-        input, inputlen, i, ']',
+        input, inputlen, i, ']', opt_trim_linebreaks_from_content,
         &title_spacing_start, &title_spacing_end
     );
     if (title_pastend < 0)
@@ -1090,7 +1141,7 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     assert(title_pastend >= title_start);
     i += 1;
 
-    int prefix_url_linebreak_to_maintain_formatting = 0;
+    int prefix_url_linebreak_to_keep_formatting = 0;
     if (i < inputlen && input[i] != '(') {
         // We only allow this if there follows a line break,
         // and the URL part is the first thing in the next line.
@@ -1113,7 +1164,7 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     int url_spacing_start = 0;
     int url_spacing_end = 0;
     url_pastend = _internal_spew3dweb_markdown_GetInlineEndBracket(
-        input, inputlen, i, ')',
+        input, inputlen, i, ')', opt_trim_linebreaks_from_content,
         &url_spacing_start, &url_spacing_end
     );
     if (url_pastend < 0)
@@ -1124,6 +1175,22 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     url_pastend -= url_spacing_end;
     assert(url_pastend >= url_start);
     i += 1;
+
+    if (out_title_start)
+        *out_title_start = title_start;
+    if (out_title_len)
+        *out_title_len = title_pastend - title_start;
+    if (out_url_start)
+        *out_url_start = url_start;
+    if (out_url_len)
+        *out_url_len = url_pastend - url_start;
+    if (out_prefix_url_linebreak_to_keep_formatting)
+        *out_prefix_url_linebreak_to_keep_formatting;
+    if (out_img_width)
+        *out_img_width = -1; //img_width;
+    if (out_img_height)
+        *out_img_height = -1; //img_height;
+
     return (i - offset);
 }
 
