@@ -44,6 +44,10 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         void *userdata,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     assert(opt_minchunklen > 0);
@@ -330,6 +334,10 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
         const char *original_buffer, size_t original_buffer_len,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
@@ -344,6 +352,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
             _internal_helper_markdown_getchunk_seekback,
             &i, optionalbuf, optionalbufsize,
             opt_maxchunklen, opt_minchunklen,
+            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
@@ -356,12 +365,17 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
         int (*seekback_func)(size_t backward_amount, void *userdata),
         void *userdata,
         size_t opt_maxchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     return _internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         read_func, checkeof_func, seekback_func, userdata,
         NULL, 0,
         opt_maxchunklen, 1024 * 5,
+        opt_uritransformcallback, opt_uritransform_userdata,
         out_len
     );
 }
@@ -370,6 +384,10 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
         SPEW3DVFS_FILE *f,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
@@ -383,6 +401,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
             _internal_helper_markdown_getchunk_seekback,
             &i, optionalbuf, optionalbufsize,
             opt_maxchunklen, opt_minchunklen,
+            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
@@ -390,17 +409,28 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
 }
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
-        SPEW3DVFS_FILE *f, size_t opt_maxchunklen, size_t *out_len
+        SPEW3DVFS_FILE *f, size_t opt_maxchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
+        size_t *out_len
         ) {
     return _internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
         f, NULL, 0,
         opt_maxchunklen, 1024 * 5,
+        opt_uritransformcallback, opt_uritransform_userdata,
         out_len
     );
 }
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
-        FILE *f, size_t opt_maxchunklen, size_t *out_len
+        FILE *f, size_t opt_maxchunklen,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
+        size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
     memset(&i, 0, sizeof(i));
@@ -413,6 +443,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
             _internal_helper_markdown_getchunk_seekback,
             &i, NULL, 0,
             opt_maxchunklen, 1024 * 5,
+            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
@@ -906,10 +937,15 @@ S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len, size_t *out_alloc
         ) {
     return _internal_spew3dweb_markdown_CleanByteBufEx(
         input, inputlen, 0, 0, opt_allowunsafehtml,
+        opt_uritransformcallback, opt_uritransform_userdata,
         out_len, out_alloc
     );
 }
@@ -1599,6 +1635,10 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         int opt_forcenolinebreaklinks,
         int opt_forceescapeunambiguousentities,
         int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len, size_t *out_alloc
         ) {
     char *resultchunk = NULL;
@@ -2129,11 +2169,18 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
 
 S3DEXP char *spew3dweb_markdown_CleanEx(
         const char *inputstr, int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     return spew3dweb_markdown_CleanByteBuf(
         inputstr, strlen(inputstr),
-        opt_allowunsafehtml, out_len, NULL
+        opt_allowunsafehtml,
+        opt_uritransformcallback,
+        opt_uritransform_userdata,
+        out_len, NULL
     );
 }
 
@@ -2142,7 +2189,7 @@ S3DEXP char *spew3dweb_markdown_Clean(
         ) { 
     return spew3dweb_markdown_CleanByteBuf(
         inputstr, strlen(inputstr),
-        1, NULL, NULL
+        1, NULL, NULL, NULL, NULL
     );  
 }
 
@@ -2232,6 +2279,10 @@ static int _spew3d_markdown_process_inline_content(
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
         int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     // First, clean up the input:
@@ -2239,6 +2290,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     char *input = _internal_spew3dweb_markdown_CleanByteBufEx(
         uncleaninput, uncleaninputlen,
         1, 1, opt_allowunsafehtml,
+        opt_uritransformcallback,
+        opt_uritransform_userdata,
         &inputlen, NULL
     );
     if (!input)
@@ -2519,11 +2572,19 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
 
 S3DEXP char *spew3dweb_markdown_ToHTMLEx(
         const char *uncleaninput,
-        int opt_allowunsafehtml, size_t *out_len
+        int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata,
+        size_t *out_len
         ) {
     return spew3dweb_markdown_ByteBufToHTML(
         uncleaninput, strlen(uncleaninput),
-        opt_allowunsafehtml, out_len
+        opt_allowunsafehtml,
+        opt_uritransformcallback,
+        opt_uritransform_userdata,
+        out_len
     );
 }
 
@@ -2532,7 +2593,7 @@ S3DEXP char *spew3dweb_markdown_ToHTML(
         ) {
     return spew3dweb_markdown_ByteBufToHTML(
         uncleaninput, strlen(uncleaninput),
-        1, NULL
+        1, NULL, NULL, NULL
     );
 }
 

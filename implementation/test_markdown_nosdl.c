@@ -45,7 +45,7 @@ START_TEST (test_markdown_chunks)
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "```abc def ```hello!",
             testbuf, sizeof(testbuf),
-            10, 5,
+            10, 5, NULL, NULL,
             &resultlen
         );
         assert(result == testbuf);
@@ -55,7 +55,7 @@ START_TEST (test_markdown_chunks)
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "```abc\n\ndef ```hello!",
             testbuf, sizeof(testbuf),
-            256, 5,
+            256, 5, NULL, NULL,
             &resultlen
         );
         assert(result == testbuf);
@@ -65,7 +65,7 @@ START_TEST (test_markdown_chunks)
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "``!abc\n\ndef ``?hello!",
             testbuf, sizeof(testbuf),
-            256, 5,
+            256, 5, NULL, NULL,
             &resultlen
         );
         assert(result == testbuf);
@@ -75,7 +75,7 @@ START_TEST (test_markdown_chunks)
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "``!abc\n\n def ``?hello!",
             testbuf, sizeof(testbuf),
-            256, 5,
+            256, 5, NULL, NULL,
             &resultlen
         );
         assert(result == testbuf);
@@ -85,7 +85,7 @@ START_TEST (test_markdown_chunks)
         result = _internal_spew3dweb_markdown_GetIChunkExFromStr(
             "```!abc\n\nd````ef\n\n ```\n\n?hello!",
             testbuf, sizeof(testbuf),
-            256, 5,
+            256, 5, NULL, NULL,
             &resultlen
         );
         assert(result == testbuf);
@@ -98,8 +98,8 @@ START_TEST(test_markdown_clean)
 {
     char *result;
     {
-        result = spew3dweb_markdown_CleanEx(
-            "\tab &amp `&amp` \\n \\ [ c\tdef\n  \n&amp `&amp` [ \\n \\ ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "\tab &amp `&amp` \\n \\ [ c\tdef\n  \n&amp `&amp` [ \\n \\ "
         );
         printf("test_markdown_clean result #1: <<%s>>\n", result);
         assert(strcmp(result,
@@ -108,8 +108,8 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "basic list\n- item1\n- item 2\n- item 3 oop `fancy`\ndone!", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "basic list\n- item1\n- item 2\n- item 3 oop `fancy`\ndone!"
         );
         printf("test_markdown_clean result #2: <<%s>>\n", result);
         assert(strcmp(result,
@@ -117,16 +117,16 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "test ![alt image\n]\n(\nmy link)", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "test ![alt image\n]\n(\nmy link)"
         );
         printf("test_markdown_clean result #3: <<%s>>\n", result);
         assert(strcmp(result, "test ![alt image\n](\nmy%20link)") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "test ![alt image\n]\n(my link)", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "test ![alt image\n]\n(my link)"
         );
         printf("test_markdown_clean result #4: <<%s>>\n", result);
         assert(strcmp(result, "test ![alt image\n](\nmy%20link)") == 0);
@@ -135,55 +135,55 @@ START_TEST(test_markdown_clean)
     {
         const char teststr[] = "test ![alt <\nimage]\n(\nmy\n link)";
         result = _internal_spew3dweb_markdown_CleanByteBufEx(
-            teststr, strlen(teststr), 1, 1, 1, NULL, NULL
+            teststr, strlen(teststr), 1, 1, 1, NULL, NULL, NULL, NULL
         );
         printf("test_markdown_clean result #5: <<%s>>\n", result);
         assert(strcmp(result, "test ![alt &lt; image](my%20link)") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "  abc\n    def\n ![alt image\n    ](my/\n           link)", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "  abc\n    def\n ![alt image\n    ](my/\n           link)"
         );
         printf("test_markdown_clean result #6: <<%s>>\n", result);
         assert(strcmp(result, "abc\ndef\n![alt image\n](my/link)") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "abc\n      def\n    ug", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "abc\n      def\n    ug"
         );
         printf("test_markdown_clean result #7: <<%s>>\n", result);
         assert(strcmp(result, "abc\n\n      def\n    ug") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "- abc\n        def\n      ug", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "- abc\n        def\n      ug"
         );
         printf("test_markdown_clean result #8: <<%s>>\n", result);
         assert(strcmp(result, "  - abc\n\n          def\n        ug") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            " abc:\n\n      def", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            " abc:\n\n      def"
         );
         printf("test_markdown_clean result #9: <<%s>>\n", result);
         assert(strcmp(result, "abc:\n\n     def") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "abc:\n\n  ```c\n  abc\n   def\n  ```", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "abc:\n\n  ```c\n  abc\n   def\n  ```"
         );
         printf("test_markdown_clean result #10: <<%s>>\n", result);
         assert(strcmp(result, "abc:\n\n```c\nabc\n def\n```") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            " - abc: ```c printf(\"Hello\");```", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            " - abc: ```c printf(\"Hello\");```"
         );
         printf("test_markdown_clean result #11: <<%s>>\n", result);
         assert(strcmp(result,
@@ -191,8 +191,8 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "  abc\n      def\n  ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "  abc\n      def\n  "
         );  // The code block 'def' must be separated, or some
             // weird parsers won't see it as a code block.
         printf("test_markdown_clean result #12: <<%s>>\n", result);
@@ -200,8 +200,8 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "- abc\ndef\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "- abc\ndef\n"
         );  // The 'def' must be separated so some weird parsers
             // don't see it as part of the bullet point.
         printf("test_markdown_clean result #13: <<%s>>\n", result);
@@ -209,57 +209,56 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "- abc\n# def\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "- abc\n# def\n"
         );  // The 'def' heading here should be left alone.
         printf("test_markdown_clean result #14: <<%s>>\n", result);
         assert(strcmp(result, "  - abc\n# def\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "  abc\n  --\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "  abc\n  --\n"
         );
         printf("test_markdown_clean result #15: <<%s>>\n", result);
         assert(strcmp(result, "abc\n---\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "- abc\n\n      def\n  ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "- abc\n\n      def\n  "
         );
         printf("test_markdown_clean result #16: <<%s>>\n", result);
         assert(strcmp(result, "  - abc\n\n        def\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc\n===\n  ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc\n===\n  "
         );
         printf("test_markdown_clean result #17: <<%s>>\n", result);
         assert(strcmp(result, "  > abc\n\n===\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc\n    =\n  ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc\n    =\n  "
         );
         printf("test_markdown_clean result #18: <<%s>>\n", result);
         assert(strcmp(result, "  > abc\n    ===\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc\n  > def\n  ", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc\n  > def\n  "
         );
         printf("test_markdown_clean result #19: <<%s>>\n", result);
         assert(strcmp(result, "  > abc\n      > def\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc d\n  --\n  aef\n   efaef\n     \n  > test\n    x",
-            1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc d\n  --\n  aef\n   efaef\n     \n  > test\n    x"
         );
         printf("test_markdown_clean result #20: <<%s>>\n", result);
         assert(strcmp(result, "  > abc d\n    -----\n    aef\n"
@@ -267,16 +266,16 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc d\n  -\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc d\n  -\n"
         );
         printf("test_markdown_clean result #21: <<%s>>\n", result);
         assert(strcmp(result, "  > abc d\n    -----\n") == 0);
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc d```a b\n abc\n  def```  bla\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc d```a b\n abc\n  def```  bla\n"
         );
         printf("test_markdown_clean result #22: <<%s>>\n", result);
         assert(strcmp(result, "  > abc d\n    ```a\n    b\n"
@@ -284,8 +283,8 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        result = spew3dweb_markdown_CleanEx(
-            "> abc d```a b\n   abc\n   def```  bla\n", 1, NULL
+        result = spew3dweb_markdown_Clean(
+            "> abc d```a b\n   abc\n   def```  bla\n"
         );
         printf("test_markdown_clean result #23: <<%s>>\n", result);
         assert(strcmp(result, "  > abc d\n    ```a\n    b\n     abc\n"
@@ -388,8 +387,8 @@ START_TEST(test_markdown_tohtml)
         "<span> testbla "));
     char *result;
     {
-        result = spew3dweb_markdown_ToHTMLEx(
-            "# abc\ndef", 1, NULL
+        result = spew3dweb_markdown_ToHTML(
+            "# abc\ndef"
         );
         printf("test_markdown_tohtml result #1: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
