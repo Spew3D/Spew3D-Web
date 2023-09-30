@@ -82,18 +82,16 @@ Parser Design Philosophy
 
 The parser follows mostly [CommonMark](https://commonmark.org),
 except where it might not follow what a visual human user expects.
-This mostly centers around indent, where if indent visually
-breaks out of a nested block, then Spew3D's parser will also
-break out of that block while CommonMark will not.
+This mostly centers around indent visually interrupting a block:
 
-Example of indent breaking out of block:
+Example of indent breaking out of a list item:
 
     This is an example text before a list.
       - List item.
     Since this text isn't indented like the list item,
     it doesn't look like it's part of it.
 
-Spew3D markdown's output:
+Spew3D markdown's output, adhering to the visual break of the indent:
 
 > This is an example text before a list.
 >
