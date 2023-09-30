@@ -52,7 +52,8 @@ Documentation
 
 - **Markdown parser:** [documentation is here](
     /docs/Markdown.md
-  ), [header is here](/include/spew3d_markdown.h).
+  ), [header is here (already baked into spew3d-web.h, don't
+  separately download and/or include!!)](/include/spew3d_markdown.h).
 
 For everything else, the [header files](./include/) themselves
 may include guidance and basic functionality, as well as

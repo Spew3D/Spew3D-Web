@@ -112,3 +112,11 @@ where CommonMark's interpretation would differ into a more
 safe variant, [use `spew3dweb_markdown_Clean` like in
 the basic example](#basic-usage).
 
+Advanced functionality
+----------------------
+
+Check [the header file (already baked into spew3d-web.h, don't
+separately download and/or include!!)](/include/spew3d_markdown.h)
+for advanced functionality, like file streaming and/or loading
+in chunks.
+
