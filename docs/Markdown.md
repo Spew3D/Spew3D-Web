@@ -96,6 +96,7 @@ Example of indent breaking out of block:
 Spew3D markdown's output:
 
 > This is an example text before a list.
+>
 >   - List item.
 >
 > Since this text isn't indented like the list item,
@@ -104,8 +105,10 @@ Spew3D markdown's output:
 [CommonMark](https://commonmark.org) interpretation:
 
 > This is an example text before a list.
+>
 >   - List item. Since this text isn't indented
-> like the list item, it doesn't look like it's part of it.
+>     like the list item, it doesn't look like
+>     it's part of it.
 
 To automatically convert a possibly ambiguous markdown text
 where CommonMark's interpretation would differ into a more
