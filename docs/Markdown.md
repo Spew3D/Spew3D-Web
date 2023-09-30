@@ -80,8 +80,8 @@ Parser Design Philosophy
 ------------------------
 
 The parser follows mostly [CommonMark](https://commonmark.org),
-except where it might not follow what a visual human user expects.
-This mostly centers around indent visually interrupting a block:
+but tries to stick more closely to a naive user's likely
+assumptions based on the raw text's visual layout:
 
 Example of indent breaking out of a list item:
 
