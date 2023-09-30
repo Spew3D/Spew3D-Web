@@ -158,7 +158,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     char **resultchunkptr, size_t *resultfillptr,
     size_t *resultallocptr, int origindent, int effectiveindent,
     int currentlineiscode, int opt_allowmultiline,
-    int opt_adjustindentinsidecode,
+    int opt_squashmultiline,
+    int opt_adjustindentinside,
     int opt_forcelinksoneline,
     int opt_escapeunambiguousentities,
     int opt_allowunsafehtml

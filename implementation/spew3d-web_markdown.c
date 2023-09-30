@@ -941,11 +941,15 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr, int origindent, int effectiveindent,
         int currentlineiscode, int opt_allowmultiline,
-        int opt_adjustindentinsidecode,
+        int opt_squashmultiline,
+        int opt_adjustindentinside,
         int opt_forcelinksoneline,
         int opt_escapeunambiguousentities,
         int opt_allowunsafehtml
         ) {
+    assert(!opt_adjustindentinside || opt_allowmultiline);
+    assert(!opt_squashmultiline || opt_allowmultiline);
+    assert(!opt_adjustindentinside || !opt_squashmultiline);
     char *resultchunk = *resultchunkptr;
     size_t resultfill = *resultfillptr;
     size_t resultalloc = *resultallocptr;
@@ -964,7 +968,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             *resultallocptr = resultalloc;
             return i;
         } else if ((input[i] == '\r' || input[i] == '\n') &&
-                opt_adjustindentinsidecode) {
+                (opt_adjustindentinside ||
+                opt_squashmultiline)) {
             if (input[i] == '\r' && i + 1 < inputlen &&
                     input[i + 1] == '\n')
                 i += 1;
@@ -973,11 +978,18 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             while (i < inputlen && (input[i] == ' ' ||
                     input[i] == '\t'))
                 i += 1;
-            // Output new line with adjusted indent:
-            if (!INSC('\n'))
-                goto errorquit;
-            if (!INSREP(" ", effectiveindent))
-                goto errorquit;
+            if (!opt_squashmultiline) {
+                // Output new line with adjusted indent:
+                if (!INSC('\n'))
+                    goto errorquit;
+                if (!INSREP(" ", effectiveindent))
+                    goto errorquit;
+            } else if (resultfill == 0 ||
+                    (resultchunk[resultfill - 1] != '\t' &&
+                    resultchunk[resultfill - 1] != ' ')) {
+                if (!INSC(' '))
+                    goto errorquit;
+            }
             continue;
         } else if (input[i] == '\r' || input[i] == '\n') {
             if (input[i] == '\r' &&
@@ -1107,7 +1119,10 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                         input, codeend, codestart,
                         &resultchunk, &resultfill, &resultalloc,
                         origindent, effectiveindent,
-                        1, 1, 1, opt_forcelinksoneline,
+                        1,
+                        // We want to always readjust indents (unless squashing):
+                        !opt_squashmultiline, opt_squashmultiline,
+                        1, opt_forcelinksoneline,
                         opt_escapeunambiguousentities,
                         opt_allowunsafehtml
                     );
@@ -1249,35 +1264,38 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             size_t i3 = title_start;
             assert(title_start > i);
             assert(title_start + title_len <= inputlen);
-            while (i3 < title_start + title_len) {
-                if (input[i3] == '\r' || input[i3] == '\n') {
-                    if (input[i3] == '\n' &&
-                            i3 + 1 < title_start + title_len &&
-                            input[i3] == '\n')
-                        i3 += 1;
-                    i3 += 1;
-                    // Replace indent with the proper one:
-                    if (!INSC('\n'))
-                        goto errorquit;
-                    if (!INSREP(" ", effectiveindent))
-                        goto errorquit;
-                    while (i3 < title_start + title_len &&
-                            (input[i3] == ' ' || input[i3] == '\t'))
-                        i3 += 1;
-                    continue;
-                }
-                if (!INSC(input[i3]))
+            if (title_len > 0) {
+                ssize_t result = (
+                _internal_spew3dweb_markdown_AddInlineAreaClean(
+                    input, title_start + title_len, title_start,
+                    &resultchunk, &resultfill, &resultalloc,
+                    origindent, effectiveindent,
+                    0, 1,
+                    // Links must always be squashed or adjusted:
+                    (opt_forcelinksoneline ||
+                    opt_squashmultiline),
+                    (!opt_forcelinksoneline) &&
+                    (!opt_squashmultiline),
+                    opt_forcelinksoneline,
+                    opt_escapeunambiguousentities,
+                    opt_allowunsafehtml
+                ));
+                assert(result == -1 || result == title_start + title_len);
+                if (result < 0)
                     goto errorquit;
-                i3 += 1;
             }
             if (!INS("]("))
                 goto errorquit;
-            if (prefix_url_linebreak_to_keep_formatting)
+            if (prefix_url_linebreak_to_keep_formatting) {
                 if (!INS("\n"))
                     goto errorquit;
+                if (!INSREP(" ", effectiveindent))
+                    goto errorquit;
+            }
             i3 = url_start;
             assert(i3 < inputlen);
             assert(url_start + url_len <= inputlen);
+            int url_seen_questionmark = 0;
             while (i3 < url_start + url_len) {
                 if (input[i3] == '\r' || input[i3] == '\n') {
                     if (input[i3] == '\n' &&
@@ -1285,14 +1303,43 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                             input[i3] == '\n')
                         i3 += 1;
                     i3 += 1;
-                    // Replace indent with the proper one:
-                    if (!INSC('\n'))
-                        goto errorquit;
-                    if (!INSREP(" ", effectiveindent))
-                        goto errorquit;
-                    while (i3 < url_start + url_len &&
-                            (input[i3] == ' ' || input[i3] == '\t'))
+                    if (resultfill <= 0 ||
+                            resultchunk[resultfill - 1] != '/')
+                        if (!INS("%20"))
+                            goto errorquit;
+                    while (i3 <= url_start + url_len &&
+                            (input[i3] == ' ' ||
+                            input[i3] == '\t'))
                         i3 += 1;
+                    continue;
+                } else if (input[i3] == '?') {
+                    url_seen_questionmark = 1;
+                } else if (input[i3] == '>') {
+                    if (!INS("%3E")) {
+                        goto errorquit;
+                    }
+                    i3 += 1;
+                    continue;
+                } else if (input[i3] == '<') {
+                    if (!INS("%3C")) {
+                        goto errorquit;
+                    }
+                    i3 += 1;
+                    continue;
+                } else if (input[i3] == ' ') {
+                    if (!url_seen_questionmark) {
+                        if (!INS("%20"))
+                            goto errorquit;
+                    } else {
+                        if (!INS("+"))
+                            goto errorquit;
+                    }
+                    i3 += 1;
+                    continue;
+                } else if (input[i3] == '\t') {
+                    if (!INS("%09"))
+                        goto errorquit;
+                    i3 += 1;
                     continue;
                 }
                 if (!INSC(input[i3]))
@@ -1480,6 +1527,7 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     i = title_pastend;
     assert(title_pastend < 0 || (title_pastend >= title_start &&
         input[title_pastend] == ']'));
+    title_start += title_spacing_start;
     title_pastend -= title_spacing_end;
     assert(title_pastend >= title_start);
     i += 1;
@@ -1498,6 +1546,8 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
         while (i < inputlen && (
                 input[i] == ' ' || input[i] == '\t'))
             i += 1;
+        if (!opt_trim_linebreaks_from_content)
+            prefix_url_linebreak_to_keep_formatting = 1;
     }
 
     if (i >= inputlen || input[i] != '(')
@@ -1515,7 +1565,12 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     i = url_pastend;
     assert(url_pastend < 0 || (url_pastend >= url_start &&
         input[url_pastend] == ')'));
+    url_start += url_spacing_start;
     url_pastend -= url_spacing_end;
+    if (prefix_url_linebreak_to_keep_formatting &&
+            (input[url_start] == '\n' ||
+            input[url_start] == '\r'))
+        prefix_url_linebreak_to_keep_formatting = 0;
     assert(url_pastend >= url_start);
     i += 1;
 
@@ -1528,7 +1583,9 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     if (out_url_len != NULL)
         *out_url_len = url_pastend - url_start;
     if (out_prefix_url_linebreak_to_keep_formatting != NULL)
-        *out_prefix_url_linebreak_to_keep_formatting;
+        *out_prefix_url_linebreak_to_keep_formatting = (
+            prefix_url_linebreak_to_keep_formatting
+        );
     if (out_img_width != NULL)
         *out_img_width = -1; //img_width;
     if (out_img_height != NULL)
@@ -1995,7 +2052,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 input, inputlen, i,
                 &resultchunk, &resultfill, &resultalloc,
                 currentlineorigindent, currentlineeffectiveindent,
-                currentlineiscode, 0, 0,
+                currentlineiscode, 0, 0, 0,
                 opt_forcenolinebreaklinks,
                 opt_forceescapeunambiguousentities,
                 opt_allowunsafehtml
