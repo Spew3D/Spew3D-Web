@@ -50,10 +50,17 @@ https://codeberg.org/Spew3D/Spew3D#options).
 Documentation
 -------------
 
-- **Markdown parser:** [documentation is here](
+Spew3D-Web offers:
+
+- **Markdown parser:** for the common document text format, supporting
+  most of [CommonMark](https://commonmark.org), tables, and more.
+  [Read tutorial here...](
     /docs/Markdown.md
-  ), [header is here (already baked into spew3d-web.h, don't
-  separately download and/or include!!)](/include/spew3d_markdown.h).
+  ).
+
+- **URI parser:** parse URIs and file paths in complex and sophisticated
+  ways, and related helper functions e.g. for URI encoding.
+  [See funcs here...](/include/spew3d_uri.h)
 
 For everything else, the [header files](./include/) themselves
 may include guidance and basic functionality, as well as

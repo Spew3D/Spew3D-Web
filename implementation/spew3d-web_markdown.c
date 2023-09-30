@@ -981,7 +981,11 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         int opt_adjustindentinside,
         int opt_forcelinksoneline,
         int opt_escapeunambiguousentities,
-        int opt_allowunsafehtml
+        int opt_allowunsafehtml,
+        char (*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
+        void *opt_uritransform_userdata
         ) {
     assert(!opt_adjustindentinside || opt_allowmultiline);
     assert(!opt_squashmultiline || opt_allowmultiline);
@@ -1151,17 +1155,18 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 if (!INSREP("`", ticks))
                     goto errorquit;
                 if (codeend - codestart > 0) {
-                    ssize_t result = _internal_spew3dweb_markdown_AddInlineAreaClean(
-                        input, codeend, codestart,
-                        &resultchunk, &resultfill, &resultalloc,
-                        origindent, effectiveindent,
-                        1,
-                        // We want to always readjust indents (unless squashing):
-                        !opt_squashmultiline, opt_squashmultiline,
-                        1, opt_forcelinksoneline,
-                        opt_escapeunambiguousentities,
-                        opt_allowunsafehtml
-                    );
+                    ssize_t result = (
+                        _internal_spew3dweb_markdown_AddInlineAreaClean(
+                            input, codeend, codestart,
+                            &resultchunk, &resultfill, &resultalloc,
+                            origindent, effectiveindent,
+                            1,
+                            // We want to always fix indents (unless squashing):
+                            !opt_squashmultiline, opt_squashmultiline,
+                            1, opt_forcelinksoneline,
+                            opt_escapeunambiguousentities,
+                            opt_allowunsafehtml,
+                            NULL, NULL));
                     assert(result == -1 || result == codeend);
                     if (result < 0)
                         goto errorquit;
@@ -1302,20 +1307,21 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             assert(title_start + title_len <= inputlen);
             if (title_len > 0) {
                 ssize_t result = (
-                _internal_spew3dweb_markdown_AddInlineAreaClean(
-                    input, title_start + title_len, title_start,
-                    &resultchunk, &resultfill, &resultalloc,
-                    origindent, effectiveindent,
-                    0, 1,
-                    // Links must always be squashed or adjusted:
-                    (opt_forcelinksoneline ||
-                    opt_squashmultiline),
-                    (!opt_forcelinksoneline) &&
-                    (!opt_squashmultiline),
-                    opt_forcelinksoneline,
-                    opt_escapeunambiguousentities,
-                    opt_allowunsafehtml
-                ));
+                    _internal_spew3dweb_markdown_AddInlineAreaClean(
+                        input, title_start + title_len, title_start,
+                        &resultchunk, &resultfill, &resultalloc,
+                        origindent, effectiveindent,
+                        0, 1,
+                        // Links must always be squashed or adjusted:
+                        (opt_forcelinksoneline ||
+                        opt_squashmultiline),
+                        (!opt_forcelinksoneline) &&
+                        (!opt_squashmultiline),
+                        opt_forcelinksoneline,
+                        opt_escapeunambiguousentities,
+                        opt_allowunsafehtml,
+                        NULL, NULL
+                    ));
                 assert(result == -1 || result == title_start + title_len);
                 if (result < 0)
                     goto errorquit;
@@ -2095,7 +2101,9 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 currentlineiscode, 0, 0, 0,
                 opt_forcenolinebreaklinks,
                 opt_forceescapeunambiguousentities,
-                opt_allowunsafehtml
+                opt_allowunsafehtml,
+                opt_uritransformcallback,
+                opt_uritransform_userdata
             );
             if (i2 < 0)
                 return NULL;

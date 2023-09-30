@@ -1,6 +1,6 @@
 
-Documentation for `spew3d_markdown.h`
-=====================================
+Documentation for Spew3D Markdown
+=================================
 
 This header provides access to a markdown parser, with two main
 functionalities: markdown to HTML conversion, and cleaning up

@@ -200,8 +200,12 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     int opt_adjustindentinside,
     int opt_forcelinksoneline,
     int opt_escapeunambiguousentities,
-    int opt_allowunsafehtml
- );
+    int opt_allowunsafehtml,
+    char (*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
+    void *opt_uritransform_userdata
+);
 
 #endif  // SPEW3DWEB_MARKDOWN_H_
 
