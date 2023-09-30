@@ -11,22 +11,8 @@ library.
 **Provided formats:**
 
 - **Markdown:** A self-contained markdown parser, which implements
-  the basic feature set e.g. found in [CommonMark](
-    https://commonmark.org) (although not always the same
-  corner-case handling) and with additional support for:
-
-  - Basic **markdown tables**:
-
-        |Column 1      |Column 2      |
-        |--------------|--------------|
-        |Row 1 cell 1  |Row 1 cell 2  |
-        |Row 2 cell 1  |Row 1 cell 2  |
-
-  - Extra syntax for **image dimensions**, useful for High-DPI images:
-
-        ![Descriptive text](image.png){width=100 height=100px}
-
-  - Option to disable unsafe HTML for untrusted sources.
+  the [common markdown subsect including tables](
+      /docs/Markdown.md#dialect).
 
 - **JSON:** upcoming.
 
@@ -52,10 +38,8 @@ will make it contain the actual implementation code and not just its API:
   ```C
   #define SPEW3D_IMPLEMENTATION
   #include <spew3d.h>
-  #undef SPEW3D_IMPLEMENTATION
   #define SPEW3DWEB_IMPLEMENTATION
   #include <spew3d-web.h>
-  #undef SPEW3DWEB_IMPLEMENTATION
   ```
 
 **Step 3:** When you link your final program, make sure to add [SDL2](
@@ -66,9 +50,13 @@ https://codeberg.org/Spew3D/Spew3D#options).
 Documentation
 -------------
 
-For now, please refer to the [header files](./include/) themselves
-like [spew3d_markdown.h](./include/spew3d_markdown.h),
-and the ['examples' folder](./examples/) for documentation.
+- **Markdown parser:** [documentation is here](
+    /docs/Markdown.md
+  ), [header is here](/include/spew3d_markdown.h).
+
+For everything else, the [header files](./include/) themselves
+may include guidance and basic functionality, as well as
+the ['examples' folder](./examples/).
 
 Run Tests
 ---------
