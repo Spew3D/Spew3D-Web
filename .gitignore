@@ -2,4 +2,5 @@
 *.bin
 *.so
 vgcore.*
+/include/spew3d.h
 /include/spew3d-web.h
