@@ -79,9 +79,10 @@ dialect or variant:
 Parser Design Philosophy
 ------------------------
 
-The parser follows mostly [CommonMark](https://commonmark.org),
-but tries to stick more closely to a naive user's likely
-assumptions based on the raw text's visual layout:
+Spew3D-Web's markdown parser follows mostly
+[CommonMark](https://commonmark.org), but tries to
+stick more closely to a naive user's likely assumptions
+based on the raw text's visual layout:
 
 Example of indent breaking out of a list item:
 
