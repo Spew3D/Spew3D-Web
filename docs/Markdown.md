@@ -59,7 +59,7 @@ Spew3D-Web's markdown parser implements the following markdown
 dialect or variant:
 
 - The basic feature set e.g. found in [CommonMark](
-    https://commonmark.org) although not [always the same
+    https://commonmark.org) although [not always the same
   corner-case handling](#parser-design-philosophy), and
   with additional support for:
 
