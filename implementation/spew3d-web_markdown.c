@@ -1206,20 +1206,21 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         }
         if ((input[i] == '!' || input[i] == '[') &&
                 !currentlineiscode) {
-            int title_start, title_end;
-            int url_start, url_end;
+            int maybeimage = (input[i] == '!');
+            int title_start, title_len;
+            int url_start, url_len;
             int prefix_url_linebreak_to_keep_formatting = 0;
             int imgwidth, imgheight;
-            int i2 = _internal_spew3dweb_markdown_GetLinkImgLen(
+            int linklen = _internal_spew3dweb_markdown_GetLinkImgLen(
                 input, inputlen, i, opt_forcelinksoneline,
-                &title_start, &title_end,
-                &url_start, &url_end,
+                &title_start, &title_len,
+                &url_start, &url_len,
                 &prefix_url_linebreak_to_keep_formatting,
                 &imgwidth, &imgheight
             );
-            if (i2 < 0 || 1) {
-                if (input[i] == '!') {
-                    // Only escape if it looks like an image:
+            if (linklen <= 0) {  // oops, not a link/image:
+                if (maybeimage) {
+                    // Only escape if it truly looks like an image:
                     if (i + 1 < inputlen &&
                             input[i + 1] == '[') {
                         if (!INS("\\!\\["))
@@ -1238,6 +1239,70 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 i += 1;
                 continue;
             }
+            // If we arrive here, it's a link or image!
+            if (maybeimage)
+                if (!INS("!["))
+                    goto errorquit;
+            if (!maybeimage)
+                if (!INS("["))
+                    goto errorquit;
+            size_t i3 = title_start;
+            assert(title_start > i);
+            assert(title_start + title_len <= inputlen);
+            while (i3 < title_start + title_len) {
+                if (input[i3] == '\r' || input[i3] == '\n') {
+                    if (input[i3] == '\n' &&
+                            i3 + 1 < title_start + title_len &&
+                            input[i3] == '\n')
+                        i3 += 1;
+                    i3 += 1;
+                    // Replace indent with the proper one:
+                    if (!INSC('\n'))
+                        goto errorquit;
+                    if (!INSREP(" ", effectiveindent))
+                        goto errorquit;
+                    while (i3 < title_start + title_len &&
+                            (input[i3] == ' ' || input[i3] == '\t'))
+                        i3 += 1;
+                    continue;
+                }
+                if (!INSC(input[i3]))
+                    goto errorquit;
+                i3 += 1;
+            }
+            if (!INS("]("))
+                goto errorquit;
+            if (prefix_url_linebreak_to_keep_formatting)
+                if (!INS("\n"))
+                    goto errorquit;
+            i3 = url_start;
+            assert(i3 < inputlen);
+            assert(url_start + url_len <= inputlen);
+            while (i3 < url_start + url_len) {
+                if (input[i3] == '\r' || input[i3] == '\n') {
+                    if (input[i3] == '\n' &&
+                            i3 + 1 < url_start + url_len &&
+                            input[i3] == '\n')
+                        i3 += 1;
+                    i3 += 1;
+                    // Replace indent with the proper one:
+                    if (!INSC('\n'))
+                        goto errorquit;
+                    if (!INSREP(" ", effectiveindent))
+                        goto errorquit;
+                    while (i3 < url_start + url_len &&
+                            (input[i3] == ' ' || input[i3] == '\t'))
+                        i3 += 1;
+                    continue;
+                }
+                if (!INSC(input[i3]))
+                    goto errorquit;
+                i3 += 1;
+            }
+            if (!INS(")"))
+                goto errorquit;
+            i += linklen;
+            continue;
         }
         if (!INSC(input[i]))
             goto errorquit;
@@ -1454,19 +1519,19 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
     assert(url_pastend >= url_start);
     i += 1;
 
-    if (out_title_start)
+    if (out_title_start != NULL)
         *out_title_start = title_start;
-    if (out_title_len)
+    if (out_title_len != NULL)
         *out_title_len = title_pastend - title_start;
-    if (out_url_start)
+    if (out_url_start != NULL)
         *out_url_start = url_start;
-    if (out_url_len)
+    if (out_url_len != NULL)
         *out_url_len = url_pastend - url_start;
-    if (out_prefix_url_linebreak_to_keep_formatting)
+    if (out_prefix_url_linebreak_to_keep_formatting != NULL)
         *out_prefix_url_linebreak_to_keep_formatting;
-    if (out_img_width)
+    if (out_img_width != NULL)
         *out_img_width = -1; //img_width;
-    if (out_img_height)
+    if (out_img_height != NULL)
         *out_img_height = -1; //img_height;
 
     return (i - offset);
