@@ -504,40 +504,35 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     *out_is_list_entry = 0;
     *out_number_list_entry_num = -1;
     *out_content_start = (pos - startpos);
-    if (indent_depth >= lastnonemptylineorigindent + 4 &&
-            !lastnonemptylinewascodeindent) {
+
+    // What we ideally want to indent at, if code (whitespace pre):
+    int adjustedwriteoutcodeindent = (
+        indent_depth + (
+            lastnonemptylineeffectiveindent -
+            lastnonemptylineorigindent
+        ));
+    if (adjustedwriteoutcodeindent < 0) adjustedwriteoutcodeindent = 0;
+
+    if (adjustedwriteoutcodeindent >= lastnonemptylineorigindent + 4
+            && !lastnonemptylinewascodeindent) {
         // This starts a code line.
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
-        int effective_indent = (
-            indent_depth + (
-                lastnonemptylineeffectiveindent -
-                lastnonemptylineorigindent
-            )
-        );
-        if (effective_indent < 0) effective_indent = 0;
-        *out_effective_indent = effective_indent;
-        *out_write_this_many_spaces = effective_indent;
+        *out_effective_indent = adjustedwriteoutcodeindent;
+        *out_write_this_many_spaces = adjustedwriteoutcodeindent;
         *out_orig_indent = indent_depth;
         return;
     }
     if ((in_list_logical_nesting_depth == 0 &&
             lastnonemptylineorigindent >= 4) ||
             in_list_logical_nesting_depth > 1 &&
-            indent_depth >=
+            adjustedwriteoutcodeindent >=
             lastnonemptylineorigindent + 4) {
         // This resumes a code line.
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
-        int effective_indent = (
-            indent_depth + (
-                lastnonemptylineeffectiveindent -
-                lastnonemptylineorigindent
-            )
-        );
-        if (effective_indent < 0) effective_indent = 0;
-        *out_effective_indent = effective_indent;
-        *out_write_this_many_spaces = effective_indent;
+        *out_effective_indent = adjustedwriteoutcodeindent;
+        *out_write_this_many_spaces = adjustedwriteoutcodeindent;
         *out_orig_indent = indent_depth;
         return;
     }
