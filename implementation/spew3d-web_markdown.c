@@ -446,6 +446,7 @@ static int _bufappend(
     if (!_ensurebufsize(bufptr, bufalloc,
             (*buffill) + appendbuflen * amount + 1))
         return 0;
+    assert(*bufalloc >= appendbuflen * amount);
     char *write = (*bufptr) + (*buffill);
     size_t k = 0;
     while (k < amount) {
@@ -508,13 +509,15 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         // This starts a code line.
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
-        *out_effective_indent = (
+        int effective_indent = (
             indent_depth + (
                 lastnonemptylineeffectiveindent -
                 lastnonemptylineorigindent
             )
         );
-        *out_write_this_many_spaces = *out_effective_indent;
+        if (effective_indent < 0) effective_indent = 0;
+        *out_effective_indent = effective_indent;
+        *out_write_this_many_spaces = effective_indent;
         *out_orig_indent = indent_depth;
         return;
     }
@@ -526,13 +529,15 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         // This resumes a code line.
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
-        *out_effective_indent = (
+        int effective_indent = (
             indent_depth + (
                 lastnonemptylineeffectiveindent -
                 lastnonemptylineorigindent
             )
         );
-        *out_write_this_many_spaces = *out_effective_indent;
+        if (effective_indent < 0) effective_indent = 0;
+        *out_effective_indent = effective_indent;
+        *out_write_this_many_spaces = effective_indent;
         *out_orig_indent = indent_depth;
         return;
     }
@@ -1409,6 +1414,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 &out_list_bullet_type,
                 &out_list_entry_num_value
             );
+            assert(out_write_this_many_spaces >= 0);
             assert(out_is_in_list_depth >= 0 &&
                 out_is_in_list_depth <=
                 in_list_logical_nesting_depth + 1);

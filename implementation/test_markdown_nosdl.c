@@ -107,10 +107,10 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "  abc\n    def\n  ", 1, NULL
+            "  abc\n    def\n ![alt image\n    ](my\n           link)", 1, NULL
         );
         printf("test_markdown_clean result #1: <<%s>>\n", result);
-        assert(strcmp(result, "abc\ndef\n") == 0);
+        assert(strcmp(result, "abc\ndef\n![alt image\n](my\nlink)") == 0);
         free(result);
     }
     {
