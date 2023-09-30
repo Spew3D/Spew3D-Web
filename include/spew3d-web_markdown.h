@@ -49,27 +49,33 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
     FILE *f, size_t opt_maxchunklen, size_t *out_len
 );
 
-
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
-    const char *inputstr, size_t input_len,
+    const char *uncleanbytes, size_t uncleanbyteslen,
     int opt_allowunsafehtml,
     size_t *out_len, size_t *out_alloc
 );
 
-S3DEXP char *spew3dweb_markdown_Clean(
-    const char *inputstr, int opt_allowunsafehtml,
-    size_t *out_len
-);
-
-S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
-    const char *uncleaninput, size_t uncleaninputlen,
+S3DEXP char *spew3dweb_markdown_CleanEx(
+    const char *uncleanstr,
     int opt_allowunsafehtml,
     size_t *out_len
 );
 
-S3DEXP char *spew3dweb_markdown_ToHTML(
-    const char *uncleaninput,
+S3DEXP char *spew3dweb_markdown_Clean(const char *uncleanstr);
+
+S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
+    const char *markdownbytes, size_t markdownbyteslen,
+    int opt_allowunsafehtml,
+    size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_ToHTMLEx(
+    const char *markdownstr,
     int opt_allowunsafehtml, size_t *out_len
+);
+
+S3DEXP char *spew3dweb_markdown_ToHTML(
+    const char *markdownstr
 );
 
 S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
@@ -151,6 +157,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     const char *input, size_t inputlen, size_t startpos,
     char **resultchunkptr, size_t *resultfillptr,
     size_t *resultallocptr, int origindent, int effectiveindent,
+    int currentlineiscode, int opt_allowmultiline,
+    int opt_adjustindentinsidecode,
     int opt_forcelinksoneline,
     int opt_escapeunambiguousentities,
     int opt_allowunsafehtml

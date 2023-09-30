@@ -475,7 +475,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         size_t buflen,
         int lastnonemptylineorigindent,
         int lastnonemptylineeffectiveindent,
-        int lastnonemptylinewascodeindent,
+        int lastnonemptylinewascode,
         int lastlinewasemptyorblockinterruptor,
         int *in_list_with_orig_indent_array,
         int *in_list_with_orig_bullet_indent_array,
@@ -505,17 +505,16 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
     *out_number_list_entry_num = -1;
     *out_content_start = (pos - startpos);
 
-    // What we ideally want to indent at, if code (whitespace pre):
-    int adjustedwriteoutcodeindent = (
-        indent_depth + (
-            lastnonemptylineeffectiveindent -
-            lastnonemptylineorigindent
-        ));
-    if (adjustedwriteoutcodeindent < 0) adjustedwriteoutcodeindent = 0;
-
-    if (adjustedwriteoutcodeindent >= lastnonemptylineorigindent + 4
-            && !lastnonemptylinewascodeindent) {
+    assert(lastnonemptylineorigindent >= 0);
+    if (indent_depth >=
+            lastnonemptylineorigindent + 4 &&
+            !lastnonemptylinewascode) {
         // This starts a code line.
+        int adjustedwriteoutcodeindent = (
+            indent_depth - lastnonemptylineorigindent
+        ) + lastnonemptylineeffectiveindent;
+        if (adjustedwriteoutcodeindent < 4)
+            adjustedwriteoutcodeindent = 4;
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
         *out_effective_indent = adjustedwriteoutcodeindent;
@@ -523,12 +522,18 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         *out_orig_indent = indent_depth;
         return;
     }
-    if ((in_list_logical_nesting_depth == 0 &&
-            lastnonemptylineorigindent >= 4) ||
-            in_list_logical_nesting_depth > 1 &&
-            adjustedwriteoutcodeindent >=
-            lastnonemptylineorigindent + 4) {
+    if ((lastnonemptylinewascode ||
+            (in_list_logical_nesting_depth == 0 &&
+            lastnonemptylineorigindent >= 4)) &&
+            indent_depth >= 4) {
         // This resumes a code line.
+        int adjustedwriteoutcodeindent = (
+            indent_depth + (
+                lastnonemptylineeffectiveindent -
+                lastnonemptylineorigindent
+            ));
+        if (adjustedwriteoutcodeindent < 4)
+            adjustedwriteoutcodeindent = 4;
         *out_is_code = 1;
         *out_is_in_list_depth = in_list_logical_nesting_depth;
         *out_effective_indent = adjustedwriteoutcodeindent;
@@ -928,6 +933,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         const char *input, size_t inputlen, size_t startpos,
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr, int origindent, int effectiveindent,
+        int currentlineiscode, int opt_allowmultiline,
+        int opt_adjustindentinsidecode,
         int opt_forcelinksoneline,
         int opt_escapeunambiguousentities,
         int opt_allowunsafehtml
@@ -938,21 +945,50 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
 
     size_t i = startpos;
     while (i < inputlen) {
-        if (input[i] == '\n' || input[i] == '\r' ||
-                (input[i] == '`' && i + 2 < inputlen &&
+        // All line break and end of inline handling:
+        if (((input[i] == '\n' || input[i] == '\r') &&
+                !opt_allowmultiline) ||
+                (!currentlineiscode &&
+                input[i] == '`' && i + 2 < inputlen &&
                 input[i + 1] == '`' &&
                 input[i + 2] == '`')) {
             *resultchunkptr = resultchunk;
             *resultfillptr = resultfill;
             *resultallocptr = resultalloc;
             return i;
+        } else if ((input[i] == '\r' || input[i] == '\n') &&
+                opt_adjustindentinsidecode) {
+            if (input[i] == '\r' && i + 1 < inputlen &&
+                    input[i + 1] == '\n')
+                i += 1;
+            i += 1;
+            // "Eat up" allow following indent first:
+            while (i < inputlen && (input[i] == ' ' ||
+                    input[i] == '\t'))
+                i += 1;
+            // Output new line with adjusted indent:
+            if (!INSC('\n'))
+                goto errorquit;
+            if (!INSREP(" ", effectiveindent))
+                goto errorquit;
+            continue;
+        } else if (input[i] == '\r' || input[i] == '\n') {
+            if (input[i] == '\r' &&
+                    i + 1 < inputlen && input[i + 1] == '\n')
+                i += 1;
+            i += 1;
+            if (!INSC('\n'))
+                goto errorquit;
+            continue;
         }
+
+        // All the inline transformations follow here:
         if (input[i] == '\0') {
             if (!INS("�"))
                 goto errorquit;
             i += 1;
             continue;
-        } else if (input[i] == '\\') {
+        } else if (input[i] == '\\' && !currentlineiscode) {
             i += 1;
             if (i < inputlen) {
                 if (input[i] == '\r' || input[i] == '\n' ||
@@ -993,18 +1029,109 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                         goto errorquit;
                 }
                 i += 1;
+            } else {
+                if (!INSC('\\'))
+                    goto errorquit;
             }
             continue;
         }
-        if (input[i] == '&' && (opt_escapeunambiguousentities ||
+        if (input[i] == '`' && !currentlineiscode &&
+                (i + 2 >= inputlen || input[i + 1] != '`' ||
+                input[i + 2] != '`')) {
+            // Possibly inline code!
+            size_t i2 = i;
+            int ticks = 1;
+            if (i2 + 1 < inputlen && input[i2 + 1] == '`') {
+                ticks += 1;
+                i2 += 1;
+            }
+            i2 += 1;
+            // To verify, find the end of our inline code.
+            size_t codestart = i2;
+            size_t codeend = 0;
+            while (i2 < inputlen) {
+                if (input[i2] == '`' && (
+                        (ticks == 1 && (i2 + 1 >= inputlen ||
+                            input[i2 + 1] != '`')) ||
+                        (ticks == 2 && input[i2 + 1] == '`' &&
+                            (i2 + 2 >= inputlen ||
+                            input[i2 + 2] != '`')))) {
+                    codeend = i2;
+                    break;
+                }
+                if (input[i2] == '\r' || input[i2] == '\n') {
+                    size_t i3 = i2;
+                    if (input[i3] == '\r' && i3 + 1 < inputlen &&
+                            input[i3 + 1] == '\n')
+                        i3 += 1;
+                    i3 += 1;
+                    int nextline_indent = 0;
+                    while (i3 < inputlen) {
+                        if (input[i3] == '\t') {
+                            nextline_indent += 4;
+                        } else if (input[i3] == ' ') {
+                            nextline_indent += 1;
+                        } else {
+                            break;
+                        }
+                        i3 += 1;
+                    }
+                    // If next line continues with an obvious new
+                    // block or unfitting indent then abort:
+                    if (i3 >= inputlen || input[i3] == '\r' ||
+                            input[i3] == '\n' ||
+                            input[i3] == '#' || input[i3] == '*' ||
+                            input[i3] == '-' || input[i3] == '=' ||
+                            input[i3] == '`' ||
+                            nextline_indent < origindent ||
+                            nextline_indent > origindent + 3)
+                        break;
+                    // Okay, this line looks non-suspicious. Continue!
+                    i2 = i3;
+                    continue;
+                }
+                i2 += 1;
+            }
+            if (codeend > 0) {  // Valid inline code:
+                if (!INSREP("`", ticks))
+                    goto errorquit;
+                if (codeend - codestart > 0) {
+                    ssize_t result = _internal_spew3dweb_markdown_AddInlineAreaClean(
+                        input, codeend, codestart,
+                        &resultchunk, &resultfill, &resultalloc,
+                        origindent, effectiveindent,
+                        1, 1, 1, opt_forcelinksoneline,
+                        opt_escapeunambiguousentities,
+                        opt_allowunsafehtml
+                    );
+                    assert(result == -1 || result == codeend);
+                    if (result < 0)
+                        goto errorquit;
+                }
+                if (!INSREP("`", ticks))
+                    goto errorquit;
+                i = i2 + ticks;
+                continue;
+            } else {
+                // Must escape invalid.
+                if (!INSC('\\'))
+                    goto errorquit;
+                if (!INSC('`'))
+                    goto errorquit;
+                i += 1;
+                continue;
+            }
+        }
+        if (input[i] == '&' && !currentlineiscode &&
+                (opt_escapeunambiguousentities ||
                 (i + 1 < inputlen &&
                 ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
                 (input[i + 1] >= 'A' && input[i + 1] <= 'Z') ||
                 input[i + 1] == '#')))) {
             size_t i2 = i + 1;
             while (i2 < inputlen && i2 < i + 15 &&
-                    ((input[i] >= 'a' && input[i] <= 'z') ||
-                    (input[i] >= 'A' && input[i] <= 'Z')))
+                    ((input[i2] >= 'a' && input[i2] <= 'z') ||
+                    (input[i2] >= 'A' && input[i2] <= 'Z')))
                 i2++;
             if (i2 >= inputlen || input[i2] != ';') {
                 if (!INS("&amp;"))
@@ -1016,7 +1143,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             i += 1;
             continue;
         }
-        if (input[i] == '>' && (opt_escapeunambiguousentities ||
+        if (input[i] == '>' && !currentlineiscode &&
+                (opt_escapeunambiguousentities ||
                 i <= 0 ||
                 ((input[i] >= 'a' && input[i] <= 'z') ||
                     (input[i] >= 'A' && input[i] <= 'Z')))) {
@@ -1025,7 +1153,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             i += 1;
             continue;
         }
-        if (input[i] == '<' && (opt_escapeunambiguousentities ||
+        if (input[i] == '<' && !currentlineiscode && (
+                opt_escapeunambiguousentities ||
                 (i + 1 < inputlen &&
                 ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
                 (input[i + 1] >= 'A' && input[i + 1] <= 'Z') ||
@@ -1068,7 +1197,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             i += 1;
             continue;
         }
-        if (input[i] == '!' || input[i] == '[') {
+        if ((input[i] == '!' || input[i] == '[') &&
+                currentlineiscode) {
             int title_start, title_end;
             int url_start, url_end;
             int prefix_url_linebreak_to_keep_formatting = 0;
@@ -1354,9 +1484,10 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     int currentlineorigindent = 0;
     int currentlinehadnonwhitespace = 0;
     int currentlinehadnonwhitespaceotherthanbullet = 0;
+    int currentlineiscode = 0;
     int lastnonemptylineeffectiveindent = 0;
     int lastnonemptylineorigindent = 0;
-    int lastnonemptylinewascodeindent = 0;
+    int lastnonemptylinewascode = 0;
     int lastlinewasemptyorblockinterruptor = 0;
     int lastlinehadlistbullet = 0;
     size_t i = 0;
@@ -1393,7 +1524,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 i, input, inputlen,
                 lastnonemptylineorigindent,
                 lastnonemptylineeffectiveindent,
-                lastnonemptylinewascodeindent,
+                lastnonemptylinewascode,
                 lastlinewasemptyorblockinterruptor,
                 in_list_with_orig_indent,
                 in_list_with_orig_bullet_indent,
@@ -1409,10 +1540,13 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 &out_list_bullet_type,
                 &out_list_entry_num_value
             );
+            assert(!out_is_code ||
+                out_effective_indent >= 4);
             assert(out_write_this_many_spaces >= 0);
             assert(out_is_in_list_depth >= 0 &&
                 out_is_in_list_depth <=
                 in_list_logical_nesting_depth + 1);
+            currentlineiscode = out_is_code;
             if (out_is_in_list_depth > MAX_LIST_NESTING)
                 out_is_in_list_depth = MAX_LIST_NESTING;
             if (out_is_in_list_depth >
@@ -1442,7 +1576,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             }
             assert(i + out_content_start < inputlen);
             if (!lastlinewasemptyorblockinterruptor &&
-                    out_is_code && !lastnonemptylinewascodeindent &&
+                    out_is_code && !lastnonemptylinewascode &&
                     resultfill > 0  // <- We had a previous line.
                     ) {
                 // Some markdown interpreters hate if a regular text
@@ -1494,7 +1628,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 }
                 assert(out_content_start > 0);
             }
-            lastnonemptylinewascodeindent = out_is_code;
+            lastnonemptylinewascode = out_is_code;
             currentlineeffectiveindent = (
                 out_effective_indent
             );
@@ -1505,7 +1639,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 // We skipped forward, so restart iteration:
                 continue;
         }
-        if (c == '`' && i + 2 < inputlen &&
+        if (c == '`' && i + 2 < inputlen && !currentlineiscode &&
                 input[i + 1] == '`' && input[i + 2] == '`') {
             // Parse ``` code block.
             int ticks = 3;
@@ -1516,6 +1650,11 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             }
             if (currentlinehadnonwhitespace) {
                 // Any opening ``` must be on separate line.
+                // Remember to cut trailing space from previous line:
+                while (resultfill > 0 && (
+                        resultchunk[resultfill - 1] == ' ' ||
+                        resultchunk[resultfill - 1] == '\t'))
+                    resultfill--;
                 if (!INS("\n"))
                     return NULL;
                 if (!INSREP(" ", currentlineeffectiveindent))
@@ -1527,6 +1666,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             currentlinehadnonwhitespace = 1;
             currentlineisblockinterruptor = 1;
             currentlinehadlistbullet = 0;
+            currentlineiscode = 0;
             currentlinehadnonwhitespaceotherthanbullet = 1;
             int insidecontentsstart = i;
             int insidecontentsend = -1;
@@ -1563,10 +1703,6 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                             input[i] == '\n')
                         i += 1;
                     i += 1;
-                    if (isfirstinnerline &&
-                            !nonwhitespaceoninnerline) {
-                        insidecontentsstart = i;
-                    }
                     isfirstinnerline = 0;
                     innerlinestart = i;
                     nonwhitespaceoninnerline = 0;
@@ -1579,6 +1715,20 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                         !nonwhitespaceoninnerline) {
                     innerlinecurrentindent += 4;
                 } else {
+                    if (input[i] == '`') {
+                        size_t i2 = i;
+                        while (i2 < inputlen && i2 < i + ticks &&
+                                input[i2] == '`')
+                            i2 += 1;
+                        if (i2 == i + ticks) {
+                            lastinnerlineisblank = (
+                                !nonwhitespaceoninnerline
+                            );
+                            insidecontentsend = i;
+                            i = i2;
+                            break;
+                        }
+                    }
                     if (!nonwhitespaceoninnerline &&
                             !isfirstinnerline &&
                             (smallestinnerindentseen < 0 ||
@@ -1591,20 +1741,6 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                     nonwhitespaceoninnerline = 1;
                     if (isfirstinnerline)
                         firstinnerlineempty = 0;
-                }
-                if (input[i] == '`') {
-                    size_t i2 = i;
-                    while (i2 < inputlen && i2 < i + ticks &&
-                            input[i2] == '`')
-                        i2 += 1;
-                    if (i2 == i + ticks) {
-                        lastinnerlineisblank = (
-                            !nonwhitespaceoninnerline
-                        );
-                        insidecontentsend = i;
-                        i = i2;
-                        break;
-                    }
                 }
                 i += 1;
             }
@@ -1628,8 +1764,6 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 currentlineeffectiveindent -
                 currentlineorigindent
             );
-            if (addindentonwrite < 0)
-                addindentonwrite = 0;
             size_t i2 = insidecontentsstart;
             if (!firstinnerlineempty) {
                 if (!INSC('\n'))
@@ -1646,7 +1780,23 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                     i2 += 1;
                     if (!INSC('\n'))
                         return NULL;
-                    if (!INSREP(" ", addindentonwrite))
+                    int line_orig_indent = 0;
+                    while (i2 < insidecontentsend &&
+                                (input[i2] == ' ' || input[i2] == '\t')) {
+                        if (input[i2] == ' ') line_orig_indent++;
+                        else line_orig_indent += 4;
+                        i2 += 1;
+                    }
+                    if (i2 >= insidecontentsend) {
+                        assert(lastinnerlineisblank);
+                        break;
+                    }
+                    int line_want_indent = (
+                        line_orig_indent + addindentonwrite
+                    );
+                    if (line_want_indent < 0)
+                        line_want_indent = 0;
+                    if (!INSREP(" ", line_want_indent))
                         return NULL;
                     continue;
                 } else if (input[i2] == '\0') {
@@ -1680,7 +1830,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             continue;
         }
         if ((c == '-' || c == '=' || c == '#' ||
-                c == '*') && (
+                c == '*') && !currentlineiscode && (
                 !currentlinehadnonwhitespace || (
                 currentlinehadlistbullet &&
                 !currentlinehadnonwhitespaceotherthanbullet
@@ -1770,6 +1920,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 input, inputlen, i,
                 &resultchunk, &resultfill, &resultalloc,
                 currentlineorigindent, currentlineeffectiveindent,
+                currentlineiscode, 0, 0,
                 opt_forcenolinebreaklinks,
                 opt_forceescapeunambiguousentities,
                 opt_allowunsafehtml
@@ -1782,7 +1933,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         }
         if (c == '\r' || c == '\n' ||
                 i >= inputlen) {
-            // Remove trailing indent from line written so far:
+            // Remove trailing space from line written so far:
             while (resultfill > 0 && (
                     resultchunk[resultfill - 1] == ' ' ||
                     resultchunk[resultfill - 1] == '\t'))
@@ -1806,6 +1957,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 lastlinehadlistbullet = 0;
                 lastlinewasemptyorblockinterruptor = 1;
             }
+            currentlineiscode = 0;
             currentlinehadnonwhitespace = 0;
             currentlinehadnonwhitespaceotherthanbullet = 0;
             currentlinehadlistbullet = 0;
@@ -1843,7 +1995,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     return resultchunk;
 }
 
-S3DEXP char *spew3dweb_markdown_Clean(
+S3DEXP char *spew3dweb_markdown_CleanEx(
         const char *inputstr, int opt_allowunsafehtml,
         size_t *out_len
         ) {
@@ -1851,6 +2003,15 @@ S3DEXP char *spew3dweb_markdown_Clean(
         inputstr, strlen(inputstr),
         opt_allowunsafehtml, out_len, NULL
     );
+}
+
+S3DEXP char *spew3dweb_markdown_Clean(
+        const char *inputstr
+        ) { 
+    return spew3dweb_markdown_CleanByteBuf(
+        inputstr, strlen(inputstr),
+        1, NULL, NULL
+    );  
 }
 
 typedef struct _markdown_lineinfo {
@@ -2224,13 +2385,22 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
 #undef INSREP
 #undef INSBUF
 
-S3DEXP char *spew3dweb_markdown_ToHTML(
+S3DEXP char *spew3dweb_markdown_ToHTMLEx(
         const char *uncleaninput,
         int opt_allowunsafehtml, size_t *out_len
         ) {
     return spew3dweb_markdown_ByteBufToHTML(
         uncleaninput, strlen(uncleaninput),
         opt_allowunsafehtml, out_len
+    );
+}
+
+S3DEXP char *spew3dweb_markdown_ToHTML(
+        const char *uncleaninput
+        ) {
+    return spew3dweb_markdown_ByteBufToHTML(
+        uncleaninput, strlen(uncleaninput),
+        1, NULL
     );
 }
 
