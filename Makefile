@@ -29,7 +29,7 @@ build-tests:
 	cd examples && $(MAKE) clean && $(MAKE) CC="$(CC)"
 
 test: amalgamate build-tests unittests
-	cd examples && ./example_markdown.bin
+	cd examples && valgrind ./example_markdown_basic.bin
 
 update-vendor-if-needed:
 	@if [ ! -e "vendor/Spew3D/include/spew3d-web.h" ]; then $(MAKE) update-vendor; fi

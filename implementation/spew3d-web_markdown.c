@@ -601,7 +601,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
             (pos - bulletstartpos) + 4) : (
             (pos - bulletstartpos) + 1)
         );
-        int contained_text_indent = (
+        int contained_text_orig_indent = (
             effectivechars_bullet_to_text + indent_depth
         );
         int bullet_orig_indent = (*out_content_start);
@@ -615,15 +615,16 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         } else {
             int k = 0;
             while (k < in_list_logical_nesting_depth) {
+                const int current_depth = (k + 1);
                 int nesting_bullet_indent = (
                     in_list_with_orig_bullet_indent_array[k]
                 );
                 if (bullet_orig_indent < nesting_bullet_indent) {
-                    list_nesting = k - 1;
+                    list_nesting = current_depth - 1;
                     if (list_nesting < 0) list_nesting = 0;
                     break;
                 } else if (bullet_orig_indent == nesting_bullet_indent) {
-                    list_nesting = k;
+                    list_nesting = current_depth;
                     break;
                 } else if (k >= in_list_logical_nesting_depth - 1) {
                     list_nesting = (
@@ -634,10 +635,15 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
                 k += 1;
             }
         }
+        if (list_nesting < 1) {
+            // Since we're a list item by ourselves, always
+            // start a new list.
+            list_nesting = 1;
+        }
         *out_is_code = 0;
         *out_is_in_list_depth = list_nesting;
         *out_effective_indent = (list_nesting * 4);
-        *out_orig_indent = contained_text_indent;
+        *out_orig_indent = contained_text_orig_indent;
         *out_orig_bullet_indent = bullet_orig_indent;
         int write_spaces = ((*out_effective_indent) -
             (iflistthenwithnumber >= 0 ? 4 : 2));
@@ -682,10 +688,11 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         // Find which list entry depth we still fit inside:
         int k = 0;
         while (k < in_list_logical_nesting_depth) {
+            const int current_depth = k - 1;
             assert(in_list_with_orig_indent_array[k] > 0);
             if (indent_depth <
                     in_list_with_orig_indent_array[k]) {
-                list_nesting = k - 1;
+                list_nesting = current_depth - 1;
                 if (list_nesting < 0) list_nesting = 0;
                 break;
             } else if (indent_depth ==
@@ -1198,7 +1205,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             continue;
         }
         if ((input[i] == '!' || input[i] == '[') &&
-                currentlineiscode) {
+                !currentlineiscode) {
             int title_start, title_end;
             int url_start, url_end;
             int prefix_url_linebreak_to_keep_formatting = 0;
@@ -1212,14 +1219,17 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             );
             if (i2 < 0 || 1) {
                 if (input[i] == '!') {
-                    if (!INS("\\!"))
+                    // Only escape if it looks like an image:
+                    if (i + 1 < inputlen &&
+                            input[i + 1] == '[') {
+                        if (!INS("\\!\\["))
+                            goto errorquit;
+                        i += 2;
+                        continue;
+                    }
+                    if (!INS("!"))
                         goto errorquit;
                     i += 1;
-                    if (i < inputlen && input[i] == '[') {
-                        if (!INS("\\["))
-                            goto errorquit;
-                        i += 1;
-                    }
                     continue;
                 }
                 assert(input[i] == '[');
