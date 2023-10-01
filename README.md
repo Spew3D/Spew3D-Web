@@ -54,6 +54,7 @@ https://libsdl.org) to your linked libraries, unless you're using
 the [Spew3D option to not use SDL](
 https://codeberg.org/Spew3D/Spew3D#options).
 
+
 Run Tests
 ---------
 
@@ -64,6 +65,7 @@ the development version of Spew3D, at `include/spew3dweb.h`.
 To run the tests, install SDL2 and libcheck (the GNU unit
 test library for C) system-wide, then use: `make test`
 
+
 License
 -------
 
@@ -71,6 +73,7 @@ Spew3D Web is licensed under a BSD license or an Apache 2
 License, [see here for details](LICENSE.md).
 It includes other projects baked in, see `vendor` folder in the
 repository.
+
 
 Supported Platforms / Compilers
 -------------------------------

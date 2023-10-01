@@ -1,4 +1,6 @@
 
+<!-- For license of this file, see LICENSE.md in the base folder. -->
+
 Documentation for Spew3D Markdown
 =================================
 
@@ -8,6 +10,7 @@ markdown by removing all possibly ambiguous corner cases
 that might trip up less intricate parsers. It also has a chunked
 mode for use for really large files without needing to load them
 all into memory.
+
 
 Basic usage
 -----------
@@ -52,6 +55,7 @@ void main(int argc, const char **argv) {
 }
 ```
 
+
 Dialect
 -------
 
@@ -75,6 +79,7 @@ dialect or variant:
       ![Descriptive text](image.png){width=100 height=100px}
 
 - Option to disable unsafe HTML for untrusted sources.
+
 
 Parser Design Philosophy
 ------------------------
@@ -112,6 +117,7 @@ To automatically convert a possibly ambiguous markdown text
 where CommonMark's interpretation would differ into a more
 safe variant, [use `spew3dweb_markdown_Clean` like in
 the basic example](#basic-usage).
+
 
 Advanced functionality
 ----------------------
