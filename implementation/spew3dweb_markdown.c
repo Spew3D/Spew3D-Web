@@ -317,7 +317,7 @@ S3DHID int _internal_helper_markdown_getchunk_reader(
     } else if (info->mode == _GETCHUNK_READERMODE_FROMVFS) {
         errno = 0;
         size_t amountread = spew3d_vfs_fread(
-            write_to, amount, 1, info->data_fromvfs.f
+            write_to, 1, amount, info->data_fromvfs.f
         );
         if (amountread == 0 &&
                 spew3d_vfs_ferror(info->data_fromvfs.f))
@@ -326,7 +326,7 @@ S3DHID int _internal_helper_markdown_getchunk_reader(
     } else if (info->mode == _GETCHUNK_READERMODE_FROMDISK) {
         errno = 0;
         size_t amountread = fread(
-            write_to, amount, 1, info->data_fromdisk.f
+            write_to, 1, amount, info->data_fromdisk.f
         );
         if (amountread == 0 && ferror(info->data_fromdisk.f))
             return -1;
