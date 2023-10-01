@@ -1389,8 +1389,8 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                             input[i3] == '\n')
                         i3 += 1;
                     i3 += 1;
-                    if (resultfill <= 0 ||
-                            resultchunk[resultfill - 1] != '/') {
+                    if (uribuffill <= 0 ||
+                            uribuf[uribuffill - 1] != '/') {
                         memcpy(uribuf + uribuffill, "%20", 4);
                         uribuffill += 3;
                     }
