@@ -105,7 +105,7 @@ START_TEST(test_markdown_clean)
         printf("test_markdown_clean result #1: <<%s>>\n", result);
         assert(strcmp(result,
             "    ab &amp <!-- `&amp` \\n \\ [ c\tdef\n\n"
-            "&amp;amp  `<!-- &amp` --&gt; \\[ \\n \\") == 0);
+            "&amp;amp <!-- ` test --> `<!-- &amp` --&gt; \\[ \\n \\") == 0);
         free(result);
     }
     {
@@ -134,12 +134,13 @@ START_TEST(test_markdown_clean)
         free(result);
     }
     {
-        const char teststr[] = "test ![alt <\nimage]\n(\nmy\n link)";
+        const char teststr[] = "test <!-- test ![alt--> "
+            "![alt <\nimage]\n(\nmy\n link)";
         result = _internal_spew3dweb_markdown_CleanByteBufEx(
-            teststr, strlen(teststr), 1, 1, 1, NULL, NULL, NULL, NULL
+            teststr, strlen(teststr), 1, 1, 1, 1, NULL, NULL, NULL, NULL
         );
         printf("test_markdown_clean result #5: <<%s>>\n", result);
-        assert(strcmp(result, "test ![alt &lt; image](my%20link)") == 0);
+        assert(strcmp(result, "test  ![alt &lt; image](my%20link)") == 0);
         free(result);
     }
     {

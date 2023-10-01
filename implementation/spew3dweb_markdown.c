@@ -937,6 +937,7 @@ S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         int opt_allowunsafehtml,
+        int opt_stripcomments,
         char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
@@ -945,6 +946,7 @@ S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         ) {
     return _internal_spew3dweb_markdown_CleanByteBufEx(
         input, inputlen, 0, 0, opt_allowunsafehtml,
+        opt_stripcomments,
         opt_uritransformcallback, opt_uritransform_userdata,
         out_len, out_alloc
     );
@@ -997,6 +999,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         int opt_forcelinksoneline,
         int opt_escapeunambiguousentities,
         int opt_allowunsafehtml,
+        int opt_stripcomments,
         char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
@@ -1068,8 +1071,15 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                     _internal_spew3dweb_skipmarkdownhtmlcomment(
                         input, inputlen, i
                 )) > 0) {
-            i += _commentskip;
-            continue;
+            if (opt_stripcomments) {
+                i += _commentskip;
+                continue;
+            } else {
+                if (!INSBUF(input + i, _commentskip))
+                    goto errorquit;
+                i += _commentskip;
+                continue;
+            }
         } else if (input[i] == '\\' && !currentlineiscode) {
             i += 1;
             if (i < inputlen) {
@@ -1189,6 +1199,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                             1, opt_forcelinksoneline,
                             opt_escapeunambiguousentities,
                             opt_allowunsafehtml,
+                            opt_stripcomments,
                             NULL, NULL));
                     assert(result == -1 || result == codeend);
                     if (result < 0)
@@ -1347,6 +1358,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                         opt_forcelinksoneline,
                         opt_escapeunambiguousentities,
                         opt_allowunsafehtml,
+                        opt_stripcomments,
                         NULL, NULL
                     ));
                 assert(result == -1 || result == title_start + title_len);
@@ -1702,6 +1714,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         int opt_forcenolinebreaklinks,
         int opt_forceescapeunambiguousentities,
         int opt_allowunsafehtml,
+        int opt_stripcomments,
         char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
@@ -2163,6 +2176,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 opt_forcenolinebreaklinks,
                 opt_forceescapeunambiguousentities,
                 opt_allowunsafehtml,
+                opt_stripcomments,
                 opt_uritransformcallback,
                 opt_uritransform_userdata
             );
@@ -2238,6 +2252,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
 
 S3DEXP char *spew3dweb_markdown_CleanEx(
         const char *inputstr, int opt_allowunsafehtml,
+        int opt_stripcomments,
         char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
@@ -2247,6 +2262,7 @@ S3DEXP char *spew3dweb_markdown_CleanEx(
     return spew3dweb_markdown_CleanByteBuf(
         inputstr, strlen(inputstr),
         opt_allowunsafehtml,
+        opt_stripcomments,
         opt_uritransformcallback,
         opt_uritransform_userdata,
         out_len, NULL
@@ -2258,7 +2274,7 @@ S3DEXP char *spew3dweb_markdown_Clean(
         ) { 
     return spew3dweb_markdown_CleanByteBuf(
         inputstr, strlen(inputstr),
-        1, NULL, NULL, NULL, NULL
+        1, 0, NULL, NULL, NULL, NULL
     );  
 }
 
@@ -2358,7 +2374,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     size_t inputlen = 0;
     char *input = _internal_spew3dweb_markdown_CleanByteBufEx(
         uncleaninput, uncleaninputlen,
-        1, 1, opt_allowunsafehtml,
+        1, 1, opt_allowunsafehtml, 1,
         opt_uritransformcallback,
         opt_uritransform_userdata,
         &inputlen, NULL

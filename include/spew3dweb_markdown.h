@@ -66,6 +66,7 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
     const char *uncleanbytes, size_t uncleanbyteslen,
     int opt_allowunsafehtml,
+    int opt_stripcomments,
     char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
@@ -76,6 +77,7 @@ S3DEXP char *spew3dweb_markdown_CleanByteBuf(
 S3DEXP char *spew3dweb_markdown_CleanEx(
     const char *uncleanstr,
     int opt_allowunsafehtml,
+    int opt_stripcomments,
     char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
@@ -189,6 +191,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     int opt_forcenolinebreaklinks,
     int opt_forceescapeunambiguousentities,
     int opt_allowunsafehtml,
+    int opt_stripcomments,
     char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
@@ -215,6 +218,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     int opt_forcelinksoneline,
     int opt_escapeunambiguousentities,
     int opt_allowunsafehtml,
+    int opt_stripcomments,
     char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
