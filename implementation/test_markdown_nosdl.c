@@ -99,12 +99,13 @@ START_TEST(test_markdown_clean)
     char *result;
     {
         result = spew3dweb_markdown_Clean(
-            "\tab &amp `&amp` \\n \\ [ c\tdef\n  \n&amp `&amp` [ \\n \\ "
+            "\tab &amp <!-- `&amp` \\n \\ ["
+            " c\tdef\n  \n&amp <!-- ` test --> `<!-- &amp` --> [ \\n \\ "
         );
         printf("test_markdown_clean result #1: <<%s>>\n", result);
         assert(strcmp(result,
-            "    ab &amp `&amp` \\n \\ [ c\tdef\n\n"
-            "&amp;amp `&amp` \\[ \\n \\") == 0);
+            "    ab &amp <!-- `&amp` \\n \\ [ c\tdef\n\n"
+            "&amp;amp  `<!-- &amp` --&gt; \\[ \\n \\") == 0);
         free(result);
     }
     {

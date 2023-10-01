@@ -38,21 +38,27 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
     int (*seekback_func)(size_t backward_amount, void *userdata),
     void *userdata,
     size_t opt_maxchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata,
     size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
     SPEW3DVFS_FILE *f, size_t opt_maxchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata,
     size_t *out_len
 );
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
     FILE *f, size_t opt_maxchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata_userdata,
     size_t *out_len
 );
@@ -60,7 +66,7 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
     const char *uncleanbytes, size_t uncleanbyteslen,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata,
@@ -70,7 +76,7 @@ S3DEXP char *spew3dweb_markdown_CleanByteBuf(
 S3DEXP char *spew3dweb_markdown_CleanEx(
     const char *uncleanstr,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata,
@@ -82,7 +88,7 @@ S3DEXP char *spew3dweb_markdown_Clean(const char *uncleanstr);
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     const char *markdownbytes, size_t markdownbyteslen,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata,
@@ -92,7 +98,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
 S3DEXP char *spew3dweb_markdown_ToHTMLEx(
     const char *markdownstr,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata,
@@ -127,7 +133,9 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
     SPEW3DVFS_FILE *f,
     char *optionalbuf, size_t optionalbufsize,
     size_t opt_maxchunklen, size_t opt_minchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata,
     size_t *out_len
 );
@@ -139,7 +147,9 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
     void *userdata,
     char *optionalbuf, size_t optionalbufsize,
     size_t opt_maxchunklen, size_t opt_minchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata,
     size_t *out_len
 );
@@ -148,7 +158,9 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
     const char *original_buffer, size_t original_buffer_len,
     char *optionalbuf, size_t optionalbufsize,
     size_t opt_maxchunklen, size_t opt_minchunklen,
-    char (*opt_uritransformcallback)(const char *uri, void *userdata),
+    char *(*opt_uritransformcallback)(
+        const char *uri, void *userdata
+    ),
     void *opt_uritransform_userdata,
     size_t *out_len
 );
@@ -157,7 +169,9 @@ static char *_internal_spew3dweb_markdown_GetIChunkExFromStr(
         const char *test_str,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char (*opt_uritransformcallback)(const char *uri, void *userdata),
+        char *(*opt_uritransformcallback)(
+            const char *uri, void *userdata
+        ),
         void *opt_uritransform_userdata,
         size_t *out_len
         ) {
@@ -175,7 +189,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     int opt_forcenolinebreaklinks,
     int opt_forceescapeunambiguousentities,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata,
@@ -201,7 +215,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     int opt_forcelinksoneline,
     int opt_escapeunambiguousentities,
     int opt_allowunsafehtml,
-    char (*opt_uritransformcallback)(
+    char *(*opt_uritransformcallback)(
         const char *uri, void *userdata
     ),
     void *opt_uritransform_userdata

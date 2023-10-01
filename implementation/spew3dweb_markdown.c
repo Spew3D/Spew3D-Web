@@ -44,7 +44,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         void *userdata,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -334,7 +334,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
         const char *original_buffer, size_t original_buffer_len,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -365,7 +365,7 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
         int (*seekback_func)(size_t backward_amount, void *userdata),
         void *userdata,
         size_t opt_maxchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -384,7 +384,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
         SPEW3DVFS_FILE *f,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -410,7 +410,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
         SPEW3DVFS_FILE *f, size_t opt_maxchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -426,7 +426,7 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
 
 S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
         FILE *f, size_t opt_maxchunklen,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -937,7 +937,7 @@ S3DEXP int spew3dweb_markdown_GetBacktickStrLangPrefixLen(
 S3DEXP char *spew3dweb_markdown_CleanByteBuf(
         const char *input, size_t inputlen,
         int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -972,6 +972,21 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
     return (len == test_str_len);
 }
 
+static int _internal_spew3dweb_skipmarkdownhtmlcomment(
+        const char *input, size_t inputlen, size_t startpos
+        ) {
+    if (startpos + 3 >= inputlen ||
+            memcmp(input + startpos, "<!--", 4) != 0)
+        return -1;
+    size_t i = startpos + 4;
+    while (i + 2 < inputlen &&
+            memcmp(input + i, "-->", 3) != 0)
+        i += 1;
+    if (i + 2 < inputlen)
+        i += 3;
+    return (int)(i - startpos);
+}
+
 S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         const char *input, size_t inputlen, size_t startpos,
         char **resultchunkptr, size_t *resultfillptr,
@@ -982,7 +997,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         int opt_forcelinksoneline,
         int opt_escapeunambiguousentities,
         int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata
@@ -1042,10 +1057,18 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         }
 
         // All the inline transformations follow here:
+        int _commentskip = -1;
         if (input[i] == '\0') {
             if (!INS("�"))
                 goto errorquit;
             i += 1;
+            continue;
+        } else if (input[i] == '<' && !currentlineiscode &&
+                (_commentskip =
+                    _internal_spew3dweb_skipmarkdownhtmlcomment(
+                        input, inputlen, i
+                )) > 0) {
+            i += _commentskip;
             continue;
         } else if (input[i] == '\\' && !currentlineiscode) {
             i += 1;
@@ -1209,8 +1232,10 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
         if (input[i] == '>' && !currentlineiscode &&
                 (opt_escapeunambiguousentities ||
                 i <= 0 ||
-                ((input[i] >= 'a' && input[i] <= 'z') ||
-                    (input[i] >= 'A' && input[i] <= 'Z')))) {
+                ((input[i - 1] >= 'a' && input[i - 1] <= 'z') ||
+                    (input[i - 1] >= 'A' && input[i - 1] <= 'Z')) ||
+                (i >= 2 && input[i - 1] == '-' &&
+                 input[i - 2] == '-'))) {
             if (!INS("&gt;"))
                 goto errorquit;
             i += 1;
@@ -1221,10 +1246,12 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 (i + 1 < inputlen &&
                 ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
                 (input[i + 1] >= 'A' && input[i + 1] <= 'Z') ||
-                input[i + 1] == '#')))) {
+                input[i + 1] == '#' || input[i + 1] == '!')))) {
             // Potentially a HTML tag, otherwise needs escaping:
             int endtagidx = -1;
-            if (i + 1 < inputlen && opt_allowunsafehtml) {
+            if (i + 1 < inputlen && opt_allowunsafehtml &&
+                    ((input[i + 1] >= 'a' && input[i + 1] <= 'z') ||
+                    ((input[i + 1] >= 'A' && input[i + 1] <= 'Z')))) {
                 size_t i2 = i + 1;
                 if ((input[i2] >= 'a' && input[i2] <= 'z') ||
                         (input[i2] >= 'A' && input[i2] <= 'Z')) {
@@ -1338,7 +1365,24 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             assert(i3 < inputlen);
             assert(url_start + url_len <= inputlen);
             int url_seen_questionmark = 0;
+            char _uribuf_stack[128] = "";
+            char *uribuf = _uribuf_stack;
+            size_t uribufalloc = sizeof(_uribuf_stack);
+            size_t uribuffill = 0;
+            int uribufonheap = 0;
             while (i3 < url_start + url_len) {
+                if (uribuffill + 5 > uribufalloc) {
+                    char *uribufnew = malloc(uribufalloc * 4);
+                    if (!uribufnew) {
+                        if (uribufonheap) free(uribuf);
+                        goto errorquit;
+                    }
+                    memcpy(uribufnew, uribuf, uribuffill + 1);
+                    if (uribufonheap) free(uribuf);
+                    uribuf = uribufnew;
+                    uribufonheap = 1;
+                    uribufalloc *= 4;
+                }
                 if (input[i3] == '\r' || input[i3] == '\n') {
                     if (input[i3] == '\n' &&
                             i3 + 1 < url_start + url_len &&
@@ -1346,9 +1390,10 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                         i3 += 1;
                     i3 += 1;
                     if (resultfill <= 0 ||
-                            resultchunk[resultfill - 1] != '/')
-                        if (!INS("%20"))
-                            goto errorquit;
+                            resultchunk[resultfill - 1] != '/') {
+                        memcpy(uribuf + uribuffill, "%20", 4);
+                        uribuffill += 3;
+                    }
                     while (i3 <= url_start + url_len &&
                             (input[i3] == ' ' ||
                             input[i3] == '\t'))
@@ -1357,37 +1402,53 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 } else if (input[i3] == '?') {
                     url_seen_questionmark = 1;
                 } else if (input[i3] == '>') {
-                    if (!INS("%3E")) {
-                        goto errorquit;
-                    }
+                    memcpy(uribuf + uribuffill, "%3E", 4);
+                    uribuffill += 3;
                     i3 += 1;
                     continue;
                 } else if (input[i3] == '<') {
-                    if (!INS("%3C")) {
-                        goto errorquit;
-                    }
+                    memcpy(uribuf + uribuffill, "%3C", 4);
+                    uribuffill += 3;
                     i3 += 1;
                     continue;
                 } else if (input[i3] == ' ') {
                     if (!url_seen_questionmark) {
-                        if (!INS("%20"))
-                            goto errorquit;
+                        memcpy(uribuf + uribuffill, "%20", 4);
+                        uribuffill += 3;
                     } else {
-                        if (!INS("+"))
-                            goto errorquit;
+                        memcpy(uribuf + uribuffill, "+", 2);
+                        uribuffill += 1;
                     }
                     i3 += 1;
                     continue;
                 } else if (input[i3] == '\t') {
-                    if (!INS("%09"))
-                        goto errorquit;
+                    memcpy(uribuf + uribuffill, "%09", 4);
+                    uribuffill += 3;
                     i3 += 1;
                     continue;
                 }
-                if (!INSC(input[i3]))
-                    goto errorquit;
+                uribuf[uribuffill] = input[i3];
+                uribuf[uribuffill + 1] = '\0';
+                uribuffill += 1;
                 i3 += 1;
             }
+            if (opt_uritransformcallback != NULL) {
+                char *transformed_uri = (
+                    opt_uritransformcallback(uribuf,    
+                        opt_uritransform_userdata));
+                if (!transformed_uri) {
+                    if (uribufonheap) free(uribuf);
+                    goto errorquit;
+                }
+                if (uribufonheap) free(uribuf);
+                uribuf = transformed_uri;
+                uribufonheap = 1;
+            }
+            if (!INS(uribuf)) {
+                if (uribufonheap) free(uribuf);
+                goto errorquit;
+            }
+            if (uribufonheap) free(uribuf);
             if (!INS(")"))
                 goto errorquit;
             i += linklen;
@@ -1641,7 +1702,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         int opt_forcenolinebreaklinks,
         int opt_forceescapeunambiguousentities,
         int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -2177,7 +2238,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
 
 S3DEXP char *spew3dweb_markdown_CleanEx(
         const char *inputstr, int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -2287,7 +2348,7 @@ static int _spew3d_markdown_process_inline_content(
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
         int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
@@ -2581,7 +2642,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
 S3DEXP char *spew3dweb_markdown_ToHTMLEx(
         const char *uncleaninput,
         int opt_allowunsafehtml,
-        char (*opt_uritransformcallback)(
+        char *(*opt_uritransformcallback)(
             const char *uri, void *userdata
         ),
         void *opt_uritransform_userdata,
