@@ -174,6 +174,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                             if (readbufheap) free(readbuf);
                             return NULL;
                         }
+                        assert(k < readbufsize);
                         readbuf[k] = '\0';
                         if (out_len) *out_len = k;
                         return readbuf;
@@ -204,7 +205,8 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         // If we reached the maximum length or end of file, stop:
         if (readbuffill >= opt_maxchunklen || waslastread) {
             assert(readbuffill <= opt_maxchunklen);
-            readbuf[readbufsize - 1] = '\0';
+            assert(readbuffill < readbufsize);
+            readbuf[readbuffill] = '\0';
             if (out_len) *out_len = readbuffill;
             return readbuf;
         }
