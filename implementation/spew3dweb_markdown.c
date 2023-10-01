@@ -2770,7 +2770,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                             goto errorquit;
                         if (!INSC('0' + headingtype))
                             goto errorquit;
-                        if (!INS(">"))
+                        if (!INS(">\n"))
                             goto errorquit;
                         assert(endlineidx == i);
                         i += 1;
@@ -2830,11 +2830,12 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     goto errorquit;
                 if (!INSC('0' + headingtype))
                     goto errorquit;
-                if (!INS(">"))
+                if (!INS(">\n"))
                     goto errorquit;
                 i = endlineidx + 2;  // Skip past underline
                 continue;
             } else {
+                i = endlineidx;
                 if (!INS("</p>\n"))
                     goto errorquit;
             }
