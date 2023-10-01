@@ -2501,6 +2501,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     }
     assert(lineinfofill < lineinfoalloc);
     char zerostringbuf[1] = "";
+    lineinfo[lineinfofill].indentedcontentlen = 0;
     lineinfo[lineinfofill].indentlen = 0;
     lineinfo[lineinfofill].linestart = zerostringbuf;
 
@@ -2551,7 +2552,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 assert(nestingsdepth >= nestreduce);
                 const int di = nestingsdepth - 1;
                 if (nestingstypes[di] != '>') {
-                    if (!INS("</ul>\n")) {
+                    if (!INS("</li></ul>\n")) {
                         errorquit: ;
                         if (lineinfoheap)
                             free(lineinfo);
