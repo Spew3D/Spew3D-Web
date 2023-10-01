@@ -475,5 +475,53 @@ void s3d_uri_Free(s3d_uriinfo *uri) {
     free(uri);
 }
 
+int s3d_uri_HasFileExtension(
+        s3d_uriinfo *uri, const char *extension
+        ) {
+    int i = strlen(uri->resource) - 1;
+    while (i >= 0 && uri->resource[i] != '.') {
+        if (uri->resource[i] == '/')
+            break;
+        i--;
+    }
+    if (i < 0 || uri->resource[i] != '.') {
+        return (strlen(extension) == 0);
+    }
+    if (extension[0] != '.' && strlen(extension) > 0)
+        i += 1;
+    return (strcasecmp(uri->resource + i, extension) == 0);
+}
+
+int s3d_uri_SetFileExtension(
+        s3d_uriinfo *uri, const char *new_extension
+        ) {
+    int i = strlen(uri->resource) - 1;
+    while (i >= 0 && uri->resource[i] != '.') {
+        if (uri->resource[i] == '/')
+            break;
+        i--;
+    }
+    if (i < 0 || uri->resource[i] != '.') {
+        i = strlen(uri->resource);
+    }
+    char *new_resource = malloc(
+        i + 1 + strlen(new_extension) + 1
+    );
+    if (!new_resource) {
+        return 0;
+    }
+    memcpy(new_resource, uri->resource, i);
+    char *write = new_resource + i;
+    if (new_extension[0] != '.') {
+        *write = '.';
+        write++;
+    }
+    memcpy(write, new_extension, strlen(new_extension) + 1);
+    free(uri->resource);
+    uri->resource = new_resource;
+
+    return 1;
+}
+
 #endif  // SPEW3DWEB_IMPLEMENTATION
 

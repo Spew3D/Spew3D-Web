@@ -165,5 +165,20 @@ char *s3d_uri_ToStrEx(
 /// relative file paths alone.
 char *s3d_uri_ToStr(s3d_uriinfo *uri);
 
+/// Check if the URI's resource has the given file extension or not.
+/// @returns 1 if the extension matches, 0 if not.
+int s3d_uri_HasFileExtension(
+    s3d_uriinfo *uri, const char *extension
+);
+
+/// Set the URI's resource to have the given file extension.
+/// If it had a previous file extension that one will be truncated
+/// first.
+/// @returns 0 on out of memory which will leave the URI unchanged,
+///   otherwise 1.
+int s3d_uri_SetFileExtension(
+    s3d_uriinfo *uri, const char *new_extension
+);
+
 #endif  // SPEW3DWEB_URI_H_
 
