@@ -2303,6 +2303,34 @@ static int _getlinelen(const char *start, size_t max) {
     return linelen;
 }
 
+static int _m2htmlline_start_list_number_len(
+        _markdown_lineinfo *lineinfo, int lineindex,
+        int *numval
+        ) {
+    size_t i = 0;
+    size_t ipastend = lineinfo[lineindex].indentedcontentlen;
+    const char *p = (lineinfo[lineindex].linestart +
+        lineinfo[lineindex].indentlen);
+    if (i >= ipastend ||
+            (p[i] < '1' || p[i] > '9'))
+        return 0;
+    char numbuf[16] = "";
+    while (i < ipastend && (p[i] >= '1' && p[i] <= '9')) {
+        if (strlen(numbuf) < sizeof(numbuf) - 1) {
+            numbuf[strlen(numbuf)] = p[i];
+        }
+        i += 1;
+    }
+    if (i + 1 >= ipastend || p[i] != '.' ||
+            (p[i + 1] != ' ' && p[i + 1] != '\t'))
+        return 0;
+    i += 2;
+    while (i < ipastend && (p[i] == ' ' || p[i] == '\t'))
+        i += 1;
+    if (numval) *numval = atoi(numbuf);
+    return i;
+}
+
 static int _spew3d_markdown_process_inline_content(
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr,
@@ -2354,7 +2382,9 @@ static int _spew3d_markdown_process_inline_content(
         size_t i = lineinfo[iline].indentlen;
         if (start_at_content_index > 0)
             i = (size_t)start_at_content_index;
-        size_t ipastend = lineinfo[iline].indentedcontentlen;
+        size_t ipastend = (
+            lineinfo[iline].indentedcontentlen +
+            lineinfo[iline].indentlen);
         const char *linebuf = lineinfo[iline].linestart;
         while (i < ipastend) {
             if (!INSC(linebuf[i]))
@@ -2489,32 +2519,45 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     int insidecodeindent = -1;
     int lastnonemptynoncodeindent = 0;
     i = 0;
-    while (i < lineinfofill) {
-        if (lineinfo[i].indentlen <= lastnonemptynoncodeindent - 4 ||
+    while (i <= lineinfofill) {
+        {
+            char lineb[2048];
+            size_t copylen = (lineinfo[i].indentlen +
+                lineinfo[i].indentedcontentlen);
+            if (copylen >= sizeof(lineb)) copylen = sizeof(lineb);
+            memcpy(lineb, lineinfo[i].linestart, copylen);
+            lineb[copylen] = '\0';
+            printf("spew3d_markdown.h: debug: "
+                "spew3dweb_markdown_ByteBufToHTML() at line %d ("
+                "indent %d): '%s'\n",
+                i, lineinfo[i].indentlen, lineb);
+        }
+        int leftlistinthisline = 0;
+        if (lineinfo[i].indentlen <= lastnonemptynoncodeindent - 2 ||
                 (insidecodeindent > 0 &&
-                lineinfo[i].indentlen <= insidecodeindent - 4)) {
+                lineinfo[i].indentlen <= insidecodeindent - 4) &&
+                (lineinfo[i].indentedcontentlen > 0 ||
+                i == lineinfofill)) {
             // We're leaving a higher nesting, either list or code.
             if (insidecodeindent >= 0) {
                 if (!INS("</code></pre>\n"))
                     goto errorquit;
+                insidecodeindent = 0;
             }
             int nestreduce = (lastnonemptynoncodeindent -
                 lineinfo[i].indentlen) / 4;
             while (nestreduce > 0) {
+                leftlistinthisline = 1;
                 assert(nestingsdepth >= nestreduce);
                 const int di = nestingsdepth - 1;
-                if (nestingstypes[di] == '-' ||
-                            nestingstypes[di] == '*') {
-                    if (!INS("</li>\n")) {
+                if (nestingstypes[di] != '>') {
+                    if (!INS("</ul>\n")) {
                         errorquit: ;
                         if (lineinfoheap)
                             free(lineinfo);
                         free(input);
                         return NULL;
                     }
-                } else if (nestingstypes[di] == '1') {
-                    if (!INS("</li>\n"))
-                        goto errorquit;
                 } else if (nestingstypes[di] == '>') {
                     if (!INS("</blockquote>\n"))
                         goto errorquit;
@@ -2525,8 +2568,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 nestingsdepth -= 1;
             }
         }
-        if (insidecodeindent < 0) {
+        if (insidecodeindent < 0 && i < lineinfofill) {
             // Check for everything allowed outside of a code block:
+            int _numentrylen = -1;
+            int _numentryvalue = -1;
             if (lineinfo[i].indentlen >=
                         lastnonemptynoncodeindent + 4 &&
                     insidecodeindent < 0) {
@@ -2542,31 +2587,59 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     goto errorquit;
                 i += 1;
                 continue;
-            } else if (lineinfo[i].indentlen >=
-                    lastnonemptynoncodeindent + 2 &&
-                    lineinfo[i].indentedcontentlen >= 2 && (
+            } else if ((lineinfo[i].indentedcontentlen >= 2 && (
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '*' ||
+                    (_numentrylen = _m2htmlline_start_list_number_len(
+                        lineinfo, i, &_numentryvalue
+                    )) > 0 ||
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '>') &&
-                    lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ') {
-                // Start of list entry!
+                    lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ')
+                    ) {
+                // Start of a list entry!
                 char bullettype = (
-                    lineinfo[i].linestart[lineinfo[i].indentlen]
+                    (_numentrylen > 0 ? '1' :
+                    lineinfo[i].linestart[lineinfo[i].indentlen])
                 );
+                int listindent = (
+                    (bullettype == '1' ? (
+                        (lineinfo[i].indentlen / 4) + 1
+                    ) : ((lineinfo[i].indentlen - 2) / 4) + 1)
+                );
+                // Previous code should have descended out of nested lists:
+                assert(nestingsdepth <= listindent);
                 lastnonemptynoncodeindent = (
                     lineinfo[i].indentlen + 2  // (indent of actual list)
                 );
-                if (nestingsdepth + 1 < MAX_LIST_NESTING) {
+                if (listindent > nestingsdepth &&
+                        nestingsdepth + 1 < MAX_LIST_NESTING) {
                     nestingsdepth += 1;
                     assert(bullettype != 0);
                     nestingstypes[nestingsdepth - 1] = bullettype;
-                    if (bullettype != '>') {
-                        if (!INS("<li>"))
-                            goto errorquit;
-                    } else {
+                    if (bullettype == '>') {
                         if (!INS("<blockquote>"))
                             goto errorquit;
+                    } else if (bullettype == '1') {
+                        if (!INS("<ol start="))
+                            goto errorquit;
+                        char startval[16];
+                        snprintf(startval, sizeof(startval) - 1,
+                            "%d", _numentryvalue);
+                        if (!INS(startval))
+                            goto errorquit;
+                        if (!INS(">"))
+                            goto errorquit;
+                    } else {
+                        if (!INS("<ul>"))
+                            goto errorquit;
                     }
+                }
+                if (bullettype != '>') {
+                    if (!leftlistinthisline)
+                        if (!INS("</li>"))
+                            goto errorquit;
+                    if (!INS("<li>"))
+                        goto errorquit;
                 }
                 lineinfo[i].indentlen += 2;
                 lineinfo[i].indentedcontentlen -= 2;
@@ -2627,6 +2700,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             }
         }
         if (insidecodeindent >= 0) {
+            assert(i < lineinfofill);
             // First, handle the indent but relative to the code base:
             // FIXME.
             // Copy single line with no unnecessary formatting changes:
@@ -2638,7 +2712,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 goto errorquit;
             if (!INS("\n"))
                 goto errorquit;
-        } else if (insidecodeindent < 0) {
+        } else if (insidecodeindent < 0 && i < lineinfofill) {
             // Add in regular inline content:
             lastnonemptynoncodeindent = lineinfo[i].indentlen;
             if (!INS("<p>"))
