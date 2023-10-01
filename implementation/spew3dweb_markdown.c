@@ -94,6 +94,8 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                     if (readbufheap) free(readbuf);
                     return NULL;
                 }
+                if (!readbufheap)
+                    memcpy(newreadbuf, readbuf, readbuffill);
                 readbufheap = 1;
                 readbuf = newreadbuf;
                 readbufsize = new_size;

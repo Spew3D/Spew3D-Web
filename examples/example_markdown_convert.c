@@ -118,7 +118,10 @@ int main(int argc, const char **argv) {
             our_little_uri_transform_helper, NULL,
             &chunklen
         );
-        if (chunk && chunklen == 0) break;  // End of file.
+        if (chunk && chunklen == 0) {  // End of file.
+            free(chunk);
+            break;
+        }
         if (!chunk) {
             fprintf(stderr, "error: I/O or out of memory error\n");
             return 1;
