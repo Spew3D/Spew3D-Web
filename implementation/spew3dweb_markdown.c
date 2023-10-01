@@ -2501,7 +2501,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             int nestreduce = (lastnonemptynoncodeindent -
                 lineinfo[i].indentlen) / 4;
             while (nestreduce > 0) {
-                if (nestingstypes[i] == '-' || nestingstypes[i] == '*') {
+                assert(nestingsdepth >= nestreduce);
+                const int di = nestingsdepth - 1;
+                if (nestingstypes[di] == '-' ||
+                            nestingstypes[di] == '*') {
                     if (!INS("</li>\n")) {
                         errorquit: ;
                         if (lineinfoheap)
@@ -2509,16 +2512,17 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         free(input);
                         return NULL;
                     }
-                } else if (nestingstypes[i] == '1') {
+                } else if (nestingstypes[di] == '1') {
                     if (!INS("</li>\n"))
                         goto errorquit;
-                } else if (nestingstypes[i] == '>') {
+                } else if (nestingstypes[di] == '>') {
                     if (!INS("</blockquote>\n"))
                         goto errorquit;
                 } else {
                     assert(0);  // Should never happen.
                 }
                 nestreduce -= 1;
+                nestingsdepth -= 1;
             }
         }
         if (insidecodeindent < 0) {
@@ -2554,6 +2558,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 );
                 if (nestingsdepth + 1 < MAX_LIST_NESTING) {
                     nestingsdepth += 1;
+                    assert(bullettype != 0);
                     nestingstypes[nestingsdepth - 1] = bullettype;
                     if (bullettype != '>') {
                         if (!INS("<li>"))
