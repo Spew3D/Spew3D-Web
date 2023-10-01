@@ -1755,8 +1755,8 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         if (starts_new_line && i < inputlen &&
                 c != '\n' && c != '\r' && (
                 i + 1 >= inputlen ||
-                input[inputlen + 1] != '\r' ||
-                input[inputlen + 1] != '\n')) {
+                input[i + 1] != '\r' ||
+                input[i + 1] != '\n')) {
             // The start of a non-empty line:
             currentlinehadlistbullet = 0;
             currentlineisblockinterruptor = 0;
