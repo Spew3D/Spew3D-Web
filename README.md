@@ -10,11 +10,18 @@ library.
 
 **Provided formats:**
 
-- **Markdown:** A self-contained markdown parser, which implements
-  the [common markdown subsect including tables](
-      /docs/Markdown.md#dialect).
+- **Markdown parser:** for the common document text format, supporting
+  most of [CommonMark](https://commonmark.org), tables, and more.
+  [Read tutorial here...](/docs/Markdown.md)
 
-- **JSON:** upcoming.
+- **URI parser:** parse URIs and file paths in complex and sophisticated
+  ways, and related helper functions e.g. for URI encoding.
+  [See funcs here...](/include/spew3d-web_uri.h)
+
+For everything else, the [header files](./include/) themselves
+may include guidance and basic functionality, as well as
+the ['examples' folder](./examples/).
+
 
 Compiling / Usage
 -----------------
@@ -46,25 +53,6 @@ will make it contain the actual implementation code and not just its API:
 https://libsdl.org) to your linked libraries, unless you're using
 the [Spew3D option to not use SDL](
 https://codeberg.org/Spew3D/Spew3D#options).
-
-Documentation
--------------
-
-Spew3D-Web offers:
-
-- **Markdown parser:** for the common document text format, supporting
-  most of [CommonMark](https://commonmark.org), tables, and more.
-  [Read tutorial here...](
-    /docs/Markdown.md
-  ).
-
-- **URI parser:** parse URIs and file paths in complex and sophisticated
-  ways, and related helper functions e.g. for URI encoding.
-  [See funcs here...](/include/spew3d_uri.h)
-
-For everything else, the [header files](./include/) themselves
-may include guidance and basic functionality, as well as
-the ['examples' folder](./examples/).
 
 Run Tests
 ---------
