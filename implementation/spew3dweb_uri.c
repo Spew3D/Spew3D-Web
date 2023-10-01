@@ -153,7 +153,9 @@ s3d_uriinfo *s3d_uri_ParseEx(
                 s3d_uri_Free(result);
                 return NULL;
             }
-            char *path_cleaned = spew3d_fs_Normalize(result->resource);
+            char *path_cleaned = spew3d_fs_NormalizeEx(
+                result->resource, allow_windows_separator, 0, '/'
+            );
             free(result->resource);
             result->resource = path_cleaned;
             return result;
@@ -171,7 +173,7 @@ s3d_uriinfo *s3d_uri_ParseEx(
             s3d_uri_Free(result);
             return NULL;
         }
-        result->resource = spew3d_fs_Normalize(uristr);
+        result->resource = spew3d_fs_NormalizeEx(uristr, 1, 0, '/');
         if (!result->resource) {
             s3d_uri_Free(result);
             return NULL;
@@ -186,7 +188,7 @@ s3d_uriinfo *s3d_uri_ParseEx(
             s3d_uri_Free(result);
             return NULL;
         }
-        result->resource = spew3d_fs_Normalize(uristr);
+        result->resource = spew3d_fs_NormalizeEx(uristr, 0, 1, '/');
         if (!result->resource) {
             s3d_uri_Free(result);
             return NULL;
@@ -292,7 +294,7 @@ s3d_uriinfo *s3d_uri_ParseEx(
             (!result->protocol ||
              strcasecmp(result->protocol, "file") != 0),
             (allow_windows_separator &&
-             strcasecmp(result->protocol, "file") != 0)
+             strcasecmp(result->protocol, "file") == 0)
         );
         if (part_start[querystringstart] == '?' &&
                 strlen(part_start + querystringstart) > 0) {
@@ -310,7 +312,9 @@ s3d_uriinfo *s3d_uri_ParseEx(
         return NULL;
     }
     if (result->protocol && strcasecmp(result->protocol, "file") == 0) {
-        char *path_cleaned = spew3d_fs_Normalize(result->resource);
+        char *path_cleaned = (spew3d_fs_NormalizeEx(
+            result->resource, allow_windows_separator, 0, '/'
+        ));
         free(result->resource);
         result->resource = path_cleaned;
     }
