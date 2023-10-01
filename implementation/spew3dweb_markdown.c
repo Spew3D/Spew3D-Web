@@ -487,12 +487,11 @@ static int _bufappend(
     if (!_ensurebufsize(bufptr, bufalloc,
             (*buffill) + appendbuflen * amount + 1))
         return 0;
-    assert(*bufalloc >= appendbuflen * amount);
+    assert(*bufalloc > (*buffill) + appendbuflen * amount);
     char *write = (*bufptr) + (*buffill);
     size_t k = 0;
     while (k < amount) {
-        memcpy(write, appendbuf,
-            appendbuflen * amount);
+        memcpy(write, appendbuf, appendbuflen);
         write += appendbuflen;
         k++;
     }

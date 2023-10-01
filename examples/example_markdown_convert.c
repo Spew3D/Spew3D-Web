@@ -122,12 +122,16 @@ int main(int argc, const char **argv) {
             free(chunk);
             break;
         }
-        if (!chunk) {
+        char *html = (chunk ? spew3dweb_markdown_ToHTML(chunk) : NULL);
+        if (!chunk || !html) {
+            free(chunk);
+            free(html);
             fprintf(stderr, "error: I/O or out of memory error\n");
             return 1;
         }
-        printf("%s\n", chunk);
+        printf("%s\n", html);
         free(chunk);
+        free(html);
     }
     fclose(f);
     return 0;
