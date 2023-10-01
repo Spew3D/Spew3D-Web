@@ -3,4 +3,4 @@
 *.so
 vgcore.*
 /include/spew3d.h
-/include/spew3d-web.h
+/include/spew3dweb.h

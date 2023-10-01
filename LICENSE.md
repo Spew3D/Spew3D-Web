@@ -1,4 +1,4 @@
-# Spew3D-Web Licensing
+# Spew3D Web Licensing
 
 *(Note: this document omits bake-in 3rd party dependencies. See
 [3RDPARTYCREDITS.md](3RDPARTYCREDITS.md) which attempts to list
@@ -10,7 +10,7 @@ Files outside of the `vendor` folder are, unless indicated
 otherwise, licensed under the following **BSD-2-Clause license**:
 
 ```
-Copyright (c) 2023,  ellie/@ell1e & Spew3D-Web Team (see AUTHORS.md).
+Copyright (c) 2023,  ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
 
 
 Redistribution and use in source and binary forms, with or without

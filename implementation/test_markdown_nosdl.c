@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, ellie/@ell1e & Spew3D-Web Team (see AUTHORS.md).
+/* Copyright (c) 2023, ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,7 @@ license, see accompanied LICENSE.md.
 #define SPEW3D_IMPLEMENTATION
 #include "spew3d.h"
 #define SPEW3DWEB_IMPLEMENTATION
-#include "spew3d-web.h"
+#include "spew3dweb.h"
 
 #include "testmain.h"
 

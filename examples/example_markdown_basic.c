@@ -5,7 +5,7 @@
 #define SPEW3D_OPTION_DISABLE_SDL  // Optional, drops graphical stuff.
 #include <spew3d.h>
 #define SPEW3DWEB_IMPLEMENTATION  // Only if not already in another file!
-#include <spew3d-web.h>
+#include <spew3dweb.h>
 #include <stdio.h>
 
 void main(int argc, const char **argv) {

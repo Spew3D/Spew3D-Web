@@ -10,7 +10,7 @@ UNITTEST_SOURCES_WITHSDL=$(sort $(filter-out $(UNITTEST_SOURCES), $(UNITTEST_SOU
 UNITTEST_BASENAMES=$(sort $(patsubst %.c, %, $(UNITTEST_SOURCES)))
 UNITTEST_BASENAMES_NOSDL=$(sort $(patsubst %.c, %, $(UNITTEST_SOURCES_NOSDL)))
 UNITTEST_BASENAMES_WITHSDL=$(sort $(patsubst %.c, %, $(UNITTEST_SOURCES_WITHSDL)))
-HEADERS=$(sort $(filter-out ./include/spew3d-web.h ./implementation/testmain.h ./implementation/spew3d-web_prefix_all.h,$(wildcard ./include/*.h) $(wildcard ./implementation/*.h)))
+HEADERS=$(sort $(filter-out ./include/spew3dweb.h ./implementation/testmain.h ./implementation/spew3dweb_prefix_all.h,$(wildcard ./include/*.h) $(wildcard ./implementation/*.h)))
 SOURCES=$(sort $(filter-out $(UNITTEST_SOURCES), $(wildcard ./implementation/*.c)))
 TESTPROG=$(sort $(patsubst %.c, %$(BINEXT), $(wildcard ./examples/example_*.c ./implementation/test_*.c)))
 
@@ -21,7 +21,7 @@ amalgamate: update-vendor-if-needed
 	echo "" >> .spew3d_ifdef
 	echo "#endif  // SPEW3DWEB_IMPLEMENTATION" > .spew3d_ifndef
 	echo "" >> .spew3d_ifndef
-	cat implementation/spew3d-web_prefix_all.h $(HEADERS) $(SOURCES) > include/spew3d-web.h
+	cat implementation/spew3dweb_prefix_all.h $(HEADERS) $(SOURCES) > include/spew3dweb.h
 	rm -f .spew3d_ifdef
 	rm -f .spew3d_ifndef
 
@@ -32,7 +32,7 @@ test: amalgamate build-tests unittests
 	cd examples && valgrind ./example_markdown_basic.bin
 
 update-vendor-if-needed:
-	@if [ ! -e "vendor/Spew3D/include/spew3d-web.h" ]; then $(MAKE) update-vendor; fi
+	@if [ ! -e "vendor/Spew3D/include/spew3dweb.h" ]; then $(MAKE) update-vendor; fi
 
 update-vendor:
 	@if [ ! -e "vendor/Spew3D/AUTHORS.md" ]; then git submodule update --init; fi
@@ -46,4 +46,4 @@ unittests:
 
 clean:
 	rm -f $(TESTPROG)
-	rm -f ./include/spew3d-web.h
+	rm -f ./include/spew3dweb.h
