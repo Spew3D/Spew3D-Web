@@ -32,7 +32,7 @@ test: amalgamate build-tests unittests
 	cd examples && valgrind ./example_markdown_basic.bin
 
 update-vendor-if-needed:
-	@if [ ! -e "vendor/Spew3D/include/spew3dweb.h" ]; then $(MAKE) update-vendor; fi
+	@if [ ! -e "vendor/Spew3D/include/spew3d.h" ]; then $(MAKE) update-vendor; fi
 
 update-vendor:
 	@if [ ! -e "vendor/Spew3D/AUTHORS.md" ]; then git submodule update --init; fi
@@ -47,3 +47,4 @@ unittests:
 clean:
 	rm -f $(TESTPROG)
 	rm -f ./include/spew3dweb.h
+
