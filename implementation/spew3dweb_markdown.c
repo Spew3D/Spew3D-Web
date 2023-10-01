@@ -67,6 +67,10 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
             readsize > optionalbufsize) readsize = optionalbufsize - 1;
     if (readsize > opt_maxchunklen) readsize = opt_maxchunklen;
 
+    if (checkeof_func(userdata)) {
+        return strdup("");
+    }
+
     // Read bit by bit, and find a good stopping position:
     unsigned int inside_backticks_of_len = 0;
     while (1) {
@@ -95,6 +99,8 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                 readbufsize = new_size;
             }
         }
+
+        // Read some data:
         int bytes = 0;
         if (readsize > 0)
             bytes = read_func(
@@ -167,7 +173,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
                             return NULL;
                         }
                         readbuf[k] = '\0';
-                        *out_len = k;
+                        if (out_len) *out_len = k;
                         return readbuf;
                     }
                 }
@@ -197,7 +203,7 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         if (readbuffill >= opt_maxchunklen || waslastread) {
             assert(readbuffill <= opt_maxchunklen);
             readbuf[readbufsize - 1] = '\0';
-            *out_len = readbuffill;
+            if (out_len) *out_len = readbuffill;
             return readbuf;
         }
         // Read more, but not past our maximum returnable size:
@@ -424,7 +430,7 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
     );
 }
 
-S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromDiskFile(
+S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
         FILE *f, size_t opt_maxchunklen,
         char *(*opt_uritransformcallback)(
             const char *uri, void *userdata

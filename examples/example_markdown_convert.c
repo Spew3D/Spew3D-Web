@@ -33,16 +33,37 @@ license, see accompanied LICENSE.md.
 #define SPEW3DWEB_IMPLEMENTATION  // Only if not already in another file!
 #include <spew3dweb.h>
 #include <stdio.h>
+#include <string.h>
+
+static const char *replace_ext_old = NULL;
+static const char *replace_ext_new = NULL;
 
 // This little helper function lets us change the file extension
-// of URIs in our converted markdown:
+// of URIs in our converted markdown, if the globals to request
+// such a change were set:
 char *our_little_uri_transform_helper(
         const char *uristr, void *userdata
         ) {
+    if (!replace_ext_new)
+        return strdup(uristr);
+
     s3d_uriinfo *uri = s3d_uri_ParseAny(uristr, "https");
     if (!uristr)
         return NULL;
-    
+
+    if (replace_ext_old &&
+            !s3d_uri_HasFileExtension(uri, replace_ext_old)) {
+        s3d_uri_Free(uri);
+        return strdup(uristr);
+    }
+
+    if (!s3d_uri_SetFileExtension(uri, replace_ext_new)) {
+        s3d_uri_Free(uri);
+        return NULL;
+    }
+    char *result = s3d_uri_ToStr(uri);
+    s3d_uri_Free(uri);
+    return result;
 }
 
 int main(int argc, const char **argv) {
@@ -55,44 +76,56 @@ int main(int argc, const char **argv) {
             if (i + 1 < argc)
                 filepath = argv[i + 1];
             break;
-        } else if (strcmp(argv[i], "--help")) {
+        } else if (strcmp(argv[i], "--help") == 0) {
             printf("A small example tool for markdown to HTML!\n");
             return 0;
-        } else if (strcmp(argv[i], "--replace-rel-link-ext")) {
+        } else if (strcmp(argv[i], "--replace-rel-link-ext") == 0) {
             if (i + 2 < argc) {
                 replace_ext_old = argv[i + 1];
                 replace_ext_new = argv[i + 2];
             }
             i += 2;
             continue;
-        } else if (strcmp(argv[i], "--version")) {
+        } else if (strcmp(argv[i], "--version") == 0) {
             printf("example_markdown_convert.c v0.1\n");
             return 0;
+        } else if (filepath == NULL &&
+                argv[i][0] != '-') {
+            filepath = argv[i];
         } else {
-            printf("warning: unrecognized argument: %s\n", argv[i]);
+            fprintf(stderr, "warning: unrecognized "
+                "argument: %s\n", argv[i]);
             return 1;
         }
         i += 1;
     }
     if (!filepath) {
-        printf("error: please specify a file path as a command "
-            "line argument!\n");
+        fprintf(stderr, "error: please specify a file path as a "
+            "command line argument!\n");
         return 1;
     }
 
     FILE *f = fopen(filepath, "rb");
     if (!f) {
-        printf("error: failed to open file: %s\n", filepath);
+        fprintf(stderr, "error: failed to open file: %s\n", filepath);
         return 1;
     }
 
-    /*while (1) {
+    while (1) {
+        size_t chunklen = 0;
         char *chunk = spew3dweb_markdown_GetIChunkFromDiskFile(
-            f, 0,
-            char (*opt_uritransformcallback)(const char *uri),
-            size_t *out_len, int *out_endoffile
+            f, 10 * 1024,
+            our_little_uri_transform_helper, NULL,
+            &chunklen
         );
-    */
+        if (chunk && chunklen == 0) break;  // End of file.
+        if (!chunk) {
+            fprintf(stderr, "error: I/O or out of memory error\n");
+            return 1;
+        }
+        printf("%s\n", chunk);
+        free(chunk);
+    }
     fclose(f);
     return 0;
 }
