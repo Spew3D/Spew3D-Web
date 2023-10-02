@@ -60,10 +60,12 @@ Dialect
 -------
 
 Spew3D-Web's markdown parser implements the following markdown
-dialect or variant:
+dialect or variant, translated to HTML:
 
-- The basic feature set e.g. found in [CommonMark](
-    https://commonmark.org) although [not always the same
+- Most of the basic feature set e.g. found in [CommonMark](
+    https://commonmark.org) or [Markdown.pl](
+    https://daringfireball.net/projects/markdown/syntax)
+  although [not always the same
   corner-case handling](#parser-design-philosophy), and
   with additional support for:
 
@@ -113,8 +115,11 @@ Spew3D markdown's output, adhering to the visual break of the indent:
 >     like the list item, it doesn't look like
 >     it's part of it.
 
+This diverges from `Markdown.pl`'s "lazy" rule, but allows
+for more control and is more visually intuitive.
+
 To automatically convert a possibly ambiguous markdown text
-where CommonMark's interpretation would differ into a more
+where other parser's interpretation would differ into a more
 safe variant, [use `spew3dweb_markdown_Clean` like in
 the basic example](#basic-usage).
 

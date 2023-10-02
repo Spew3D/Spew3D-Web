@@ -11,7 +11,7 @@ library.
 **Provided formats:**
 
 - **Markdown parser:** for the common document text format, supporting
-  most of [CommonMark](https://commonmark.org), tables, and more.
+  the common basics along with tables, and more.
   [Read tutorial here...](/docs/Markdown.md)
 
 - **URI parser:** parse URIs and file paths in complex and sophisticated
