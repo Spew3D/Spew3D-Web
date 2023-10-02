@@ -531,6 +531,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
         char *out_list_bullet_type,
         int *out_number_list_entry_num
         ) {
+    assert(in_list_logical_nesting_depth >= 0);
     int startpos = pos;
     int indent_depth = 0;
     while (pos < buflen &&
@@ -2534,7 +2535,7 @@ static int _spew3d_markdown_process_inline_content(
                 size_t scantruncate = 0;
                 if (inside_imgtitle_ends_at > 0)
                     scantruncate = inside_imgtitle_ends_at;
-                assert(scantruncate > i);
+                assert(scantruncate == 0 || scantruncate > i);
 
                 // See if we can find the fitting end:
                 int previousnesting = fnestingsdepth;
@@ -2594,6 +2595,7 @@ static int _spew3d_markdown_process_inline_content(
                     if (!INSC(linebuf[i]))
                         goto errorquit;
                     fnestingsdepth = previousnesting;
+                    i += 1;
                     continue;
                 }
 
