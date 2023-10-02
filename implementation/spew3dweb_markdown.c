@@ -2375,6 +2375,62 @@ static int _m2htmlline_start_list_number_len(
     return i;
 }
 
+#define _FORMAT_TYPE_ASTERISK1 1
+#define _FORMAT_TYPE_ASTERISK2 2
+#define _FORMAT_TYPE_UNDERLINE2 3
+#define _FORMAT_TYPE_TILDE2 4
+
+static int _md2html_fmt_type_len(int type) {
+    return (type == _FORMAT_TYPE_ASTERISK1 ? 1 : 2);
+}
+
+static char _md2html_get_inline_fmt_type(
+        const char *linebuf, size_t ipastend, size_t i,
+        int *out_canopen, int *out_canclose
+        ) {
+    int type = 0;
+    int canclose = (i > 0 &&
+        linebuf[i - 1] != ' ' &&
+        linebuf[i - 1] != '\t');
+    int canopen = 1;
+    if (linebuf[i] == '~' &&
+            i + 1 < ipastend &&
+            linebuf[i + 1] == '~') {
+        type = _FORMAT_TYPE_TILDE2;
+        if (i + 2 >= ipastend ||
+                (linebuf[i + 2] == ' ' &&
+                linebuf[i + 2] == '\t'))
+            canopen = 0;
+    }
+    if (linebuf[i] == '*') {
+        if (i + 1 < ipastend &&
+                linebuf[i + 1] == '*') {
+            type = _FORMAT_TYPE_ASTERISK2;
+            if (i + 2 >= ipastend ||
+                    (linebuf[i + 2] == ' ' &&
+                    linebuf[i + 2] == '\t'))
+                canopen = 0;
+        } else {
+            type = _FORMAT_TYPE_ASTERISK1;
+            if (i + 1 >= ipastend ||
+                (linebuf[i + 1] == ' ' &&
+                linebuf[i + 1] == '\t'))
+            canopen = 0;
+        }
+    }
+    if (linebuf[i] == '_' &&
+            i + 1 < ipastend && linebuf[i + 1] == '_') {
+        type = _FORMAT_TYPE_UNDERLINE2;
+        if (i + 2 >= ipastend ||
+                (linebuf[i + 2] == ' ' &&
+                linebuf[i + 2] == '\t'))
+            canopen = 0;
+    }
+    if (out_canopen) *out_canopen = canopen;
+    if (out_canclose) *out_canclose = canclose;
+    return 0;
+}
+
 static int _spew3d_markdown_process_inline_content(
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr,
@@ -2392,6 +2448,12 @@ static int _spew3d_markdown_process_inline_content(
     if (endline + 1 < endbeforeline &&
             isinheading)
         endbeforeline = endline + 1;
+
+    size_t inside_linktitle_ends_at = 0;
+    size_t past_link_idx = 0;
+    size_t inside_imgtitle_ends_at = 0;
+    size_t past_image_idx = 0;
+
     while (endline + 1 < endbeforeline &&
             !as_code &&
             lineinfo[endline + 1].indentlen ==
@@ -2440,6 +2502,253 @@ static int _spew3d_markdown_process_inline_content(
             lineinfo[iline].indentlen);
         const char *linebuf = lineinfo[iline].linestart;
         while (i < ipastend) {
+            if (inside_linktitle_ends_at > 0 &&
+                    i >= inside_linktitle_ends_at) {
+                linkend: ;
+                if (!INS("</a>"))  // Close link title
+                    goto errorquit;
+                inside_linktitle_ends_at = 0;
+                continue;
+            }
+            if (inside_imgtitle_ends_at > 0 &&
+                    i >= inside_imgtitle_ends_at) {
+                imgend: ;
+                if (!INS("'/>"))  // Close 'alt' attribute
+                    goto errorquit;
+                inside_imgtitle_ends_at = 0;
+                continue;
+            }
+            int _fmtcanopen, _fmtcanclose;
+            int _fmttype = 0;
+            if (fnestingsdepth < MAX_FORMAT_NESTING &&
+                    inside_imgtitle_ends_at == 0 &&
+                    (_fmttype = _md2html_get_inline_fmt_type(
+                        linebuf, ipastend, i,
+                        &_fmtcanopen, &_fmtcanclose
+                    )) > 0 && _fmtcanopen &&
+                    !_fmtcanclose || (
+                    fnestingsdepth == 0 ||
+                    fnestings[fnestingsdepth - 1] != _fmttype)) {
+                // This opens the given formatting, if there's an end:
+
+                size_t scantruncate = 0;
+                if (inside_imgtitle_ends_at > 0)
+                    scantruncate = inside_imgtitle_ends_at;
+                assert(scantruncate > i);
+
+                // See if we can find the fitting end:
+                int previousnesting = fnestingsdepth;
+                fnestingsdepth++;
+                fnestings[fnestingsdepth - 1] = _fmttype;
+                size_t i2 = i;
+                size_t i2pastend = ipastend;
+                if (scantruncate > 0 &&
+                        i2pastend > scantruncate)
+                    i2pastend = scantruncate;
+                size_t foundendinline = 0;
+                int foundpastidx = -1;
+                int incode = 0;
+                size_t iline2 = iline;
+                while (iline2 <= endline &&
+                        (scantruncate == 0 ||
+                        iline2 == iline)) {
+                    while (i2 < i2pastend) {
+                        if (linebuf[i2] == '\\') {
+                            i2 += 2;
+                            continue;
+                        }
+                        if (linebuf[i2] == '`') incode = !incode;
+                        int _innerfmt, _innercanopen, _innercanclose;
+                        _innerfmt = _md2html_get_inline_fmt_type(
+                            linebuf, ipastend, i,
+                            &_innercanopen, &_innercanclose
+                        );
+                        if (_innerfmt > 0 && !incode && _innercanclose &&
+                                fnestings[fnestingsdepth - 1] == _innerfmt) {
+                            fnestingsdepth--;
+                            if (fnestingsdepth <= previousnesting) {
+                                foundpastidx = i2 + (
+                                    _md2html_fmt_type_len(_innerfmt)
+                                );
+                                foundendinline = iline2;
+                                break;
+                            }
+                        } else if (_innerfmt > 0 && _innercanopen &&
+                                fnestingsdepth + 1 < MAX_FORMAT_NESTING) {
+                            fnestingsdepth++;
+                            fnestings[fnestingsdepth] = _innerfmt;
+                            i2 += _md2html_fmt_type_len(_innerfmt);
+                            continue;
+                        }
+                        i2 += 1;
+                    }
+                    if (foundpastidx >= 0)
+                        break;
+                    i2 = lineinfo[iline2].indentlen;
+                    i2pastend = (lineinfo[iline2].indentlen +
+                        lineinfo[iline2].indentedcontentlen);
+                    iline2 += 1;
+                }
+                if (foundpastidx < 0) {
+                    // No matched end, invalid. Throw away.
+                    if (!INSC(linebuf[i]))
+                        goto errorquit;
+                    fnestingsdepth = previousnesting;
+                    continue;
+                }
+
+                // If we got here, found the end, so this formatting
+                // is valid. Insert it:
+                fnestingsdepth = previousnesting + 1;
+                if (_fmttype == _FORMAT_TYPE_ASTERISK1)
+                    if (!INS("<em>"))
+                        goto errorquit;
+                else if (_fmttype == _FORMAT_TYPE_ASTERISK2 ||
+                        _fmttype == _FORMAT_TYPE_UNDERLINE2)
+                    if (!INS("<strong>"))
+                        goto errorquit;
+                else if (_fmttype == _FORMAT_TYPE_TILDE2)
+                    if (!INS("<strike>"))
+                        goto errorquit;
+                i += _md2html_fmt_type_len(_fmttype);
+                continue;
+            } else if (fnestingsdepth > 0 &&
+                    inside_imgtitle_ends_at == 0 &&
+                    (_fmttype = _md2html_get_inline_fmt_type(
+                        linebuf, ipastend, i,
+                        &_fmtcanopen, &_fmtcanclose
+                    )) > 0 && _fmtcanclose &&
+                    fnestings[fnestingsdepth - 1] == _fmttype) {
+                // Close corresponding formatting again.
+                fnestingsdepth -= 1;
+                if (_fmttype == _FORMAT_TYPE_ASTERISK1)
+                    if (!INS("</em>"))
+                        goto errorquit;
+                else if (_fmttype == _FORMAT_TYPE_ASTERISK2 ||
+                        _fmttype == _FORMAT_TYPE_UNDERLINE2)
+                    if (!INS("</strong>"))
+                        goto errorquit;
+                else if (_fmttype == _FORMAT_TYPE_TILDE2)
+                    if (!INS("</strike>"))
+                        goto errorquit;
+                i += _md2html_fmt_type_len(_fmttype);
+                continue;
+            }
+            if (linebuf[i] == '`' &&
+                    inside_imgtitle_ends_at == 0) {
+                if (!INS("<code>"))
+                    goto errorquit;
+                i += 1;
+                while (i < ipastend &&
+                        linebuf[i] != '`') {
+                    if (linebuf[i] == '<') {
+                        if (!INS("&lt;"))
+                            goto errorquit;
+                    } else if (linebuf[i] == '>') {
+                        if (!INS("&gt;"))
+                            goto errorquit;
+                    } else if (linebuf[i] == '&') {
+                        if (!INS("&amp;"))
+                            goto errorquit;
+                    } else {
+                        if (!INSC(linebuf[i]))
+                            goto errorquit;
+                    }
+                    i += 1;
+                }
+            } else if (linebuf[i] == '\\') {
+                if (i < ipastend) {
+                    i += 1;
+                    if (inside_linktitle_ends_at > 0 &&
+                            i >= inside_linktitle_ends_at)
+                        goto linkend;
+                    if (inside_imgtitle_ends_at > 0 &&
+                            i >= inside_imgtitle_ends_at)
+                        goto imgend;
+                    if (linebuf[i] == '<') {
+                        if (!INS("&lt;"))
+                            goto errorquit;
+                    } else if (linebuf[i] == '>') {
+                        if (!INS("&gt;"))
+                            goto errorquit;
+                    } else if (linebuf[i] == '&') {
+                        if (!INS("&amp;"))
+                            goto errorquit;
+                    } else {
+                        if (linebuf[i] != '[' && linebuf[i] != '(' &&
+                                linebuf[i] != '#' && linebuf[i] != '|')
+                            if (!INSC('\\'))
+                                goto errorquit;
+                        if (!INSC(linebuf[i]))
+                            goto errorquit;
+                    }
+                }
+            } else if ((linebuf[i] == '!' &&
+                    inside_imgtitle_ends_at == 0 &&
+                    i + 1 < ipastend &&
+                    linebuf[i + 1] == '[') || (
+                    linebuf[i] == '[' &&
+                    inside_imgtitle_ends_at == 0 &&
+                    inside_linktitle_ends_at == 0)) {
+                int isimage = (linebuf[i] == '!');
+                int title_start, title_len;
+                int url_start, url_len;
+                int prefix_url_linebreak_to_keep_formatting = 0;
+                int imgwidth, imgheight;
+                size_t linklen = (
+                    _internal_spew3dweb_markdown_GetLinkImgLen(
+                        linebuf, ipastend, i, 1,
+                        &title_start, &title_len,
+                        &url_start, &url_len,
+                        &prefix_url_linebreak_to_keep_formatting,
+                        &imgwidth, &imgheight
+                    ));
+                if (linklen <= 0 || (!isimage &&
+                        title_len == 0)) {
+                    if (!INSC(linebuf[i]))
+                        goto errorquit;
+                    if (linebuf[i] == '!') {
+                        i += 1;
+                        if (!INSC(linebuf[i]))
+                            goto errorquit;
+                    }
+                } else {
+                    if (isimage)
+                        if (!INS("<img src='"))
+                            goto errorquit;
+                    if (!isimage)
+                        if (!INS("<a href='"))
+                            goto errorquit;
+                    if (!INSBUF(linebuf + url_start,
+                            url_len))
+                        goto errorquit;
+                    if (isimage && title_len == 0) {
+                        // Done already.
+                        if (!INS("'/>"))
+                            goto errorquit;
+                        i += linklen;
+                        continue;
+                    } else {
+                        if (isimage) {
+                            if (!INS("' alt='"))
+                                goto errorquit;
+                            i = title_start;
+                            inside_imgtitle_ends_at = (
+                                title_start + title_len
+                            );
+                            past_image_idx = i + linklen;
+                        } else {
+                            inside_linktitle_ends_at = (
+                                url_start + url_len
+                            );
+                            past_link_idx = i + linklen;
+                            if (!INS("'>"))
+                                goto errorquit;
+                        }
+                        continue;
+                    }
+                }
+            }
             if (!INSC(linebuf[i]))
                 goto errorquit;
             i += 1;
@@ -2453,6 +2762,11 @@ static int _spew3d_markdown_process_inline_content(
         *out_endlineidx = iline - 1;
     return 1;
 }
+
+#undef _FORMAT_TYPE_ASTERISK1
+#undef _FORMAT_TYPE_ASTERISK2
+#undef _FORMAT_TYPE_UNDERLINE2
+#undef _FORMAT_TYPE_TILDE2
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
