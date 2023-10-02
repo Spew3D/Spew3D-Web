@@ -72,7 +72,7 @@ int main(int argc, const char **argv) {
     const char *replace_ext_new = NULL;
     int i = 1;
     while (i < argc) {
-        if (argv[i] == "--") {
+        if (strcmp(argv[i], "--") == 0) {
             if (i + 1 < argc)
                 filepath = argv[i + 1];
             break;
