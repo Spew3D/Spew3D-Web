@@ -3178,6 +3178,53 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     goto errorquit;
                 i += 1;
                 continue;
+            } else if (lineinfo[i].indentedcontentlen >= 3 &&
+                    lineinfo[i].linestart[
+                    lineinfo[i].indentlen] == '`' &&
+                    lineinfo[i].linestart[
+                    lineinfo[i].indentlen + 1] == '`' &&
+                    lineinfo[i].linestart[
+                    lineinfo[i].indentlen + 2] == '`') {
+                // This is a special fenced code block:
+                int j = lineinfo[i].indentlen + 3;
+                int ticks = 3;
+                while (j < lineinfo[i].indentedcontentlen &&
+                        lineinfo[i].linestart[j] == '`') {
+                    ticks += 1;
+                    j += 1;
+                }
+                int langnamelen = (
+                    spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
+                        lineinfo[i].linestart,
+                        lineinfo[i].indentlen +
+                        lineinfo[i].indentedcontentlen, j
+                    ));
+                i += 1;
+                while (i < lineinfofill) {
+                    j = lineinfo[i].indentlen;
+                    int _foundticks = 0;
+                    while (j < lineinfo[i].indentedcontentlen &&
+                            lineinfo[i].linestart[j] == '`') {
+                        _foundticks += 1;
+                        j += 1;
+                    }
+                    if (_foundticks >= ticks) {
+                        i += 1;
+                        break;
+                    } else {
+                        // Add in the contents of this section:
+                        int endlineidx = -1;
+                        if (!_spew3d_markdown_process_inline_content(
+                                &resultchunk, &resultfill, &resultalloc,
+                                lineinfo, lineinfofill, i, i, 0,
+                                1, 0, options,
+                                &endlineidx))
+                            goto errorquit;
+                        assert(endlineidx == i);
+                    }
+                    i += 1;
+                }
+                continue;
             } else if ((lineinfo[i].indentedcontentlen >= 2 && (
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '*' ||
