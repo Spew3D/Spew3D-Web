@@ -2974,7 +2974,25 @@ S3DEXP char *spew3dweb_markdown_MarkdownBytesToAnchor(
             result[resultfill - 1] == '-')
         resultfill--;
     result[resultfill] = '\0';
-    return result;
+
+    char *lowercaseresult = malloc(
+        resultfill * UTF8_CP_MAX_BYTES + 1
+    );
+    int iorig = 0;
+    int ilower = 0;
+    while (iorig < resultfill) {
+        int out_origlen = 0;
+        int out_lowerlen = 0;
+        utf8_char_to_lowercase(
+            result + iorig, &out_origlen,
+            &out_lowerlen, lowercaseresult + ilower
+        );
+        iorig += out_origlen;
+        ilower += out_lowerlen;
+    }
+    lowercaseresult[ilower] = '\0';
+    free(result);
+    return lowercaseresult;
 }
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
@@ -3189,6 +3207,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     lineinfo[i].linestart[
                     lineinfo[i].indentlen + 2] == '`') {
                 // This is a special fenced code block:
+                int baseindent = lineinfo[i].indentlen;
                 int j = lineinfo[i].indentlen + 3;
                 int ticks = 3;
                 while (j < lineinfo[i].indentedcontentlen &&
@@ -3220,25 +3239,6 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     }
                     if (!INS("'>"))
                         goto errorquit;
-                    while (j < lineinfo[i].indentlen +
-                            lineinfo[i].indentedcontentlen && (
-                            lineinfo[i].linestart[j] == ' ' ||
-                            lineinfo[i].linestart[j] == '\t'))
-                        j += 1;
-                    if (j < lineinfo[i].indentlen +
-                            lineinfo[i].indentedcontentlen) {
-                        if (!INSREP(" ", lineinfo[i].indentlen))
-                            goto errorquit;
-                        int endlineidx = -1;
-                        if (!_spew3d_markdown_process_inline_content(
-                                &resultchunk, &resultfill, &resultalloc,
-                                lineinfo, lineinfofill, i, i, j,
-                                1, 0, options,
-                                &endlineidx))
-                            goto errorquit;
-                        if (!INS("\n"))
-                            goto errorquit;
-                    }
                 } else {
                     if (!INS(">"))
                         goto errorquit;
@@ -3256,7 +3256,15 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         i += 1;
                         break;
                     } else {
-                        // Add in the contents of this section:
+                        // Add indent of this line:
+                        int incodeindent = (
+                            lineinfo[i].indentlen -
+                            baseindent);
+                        if (incodeindent < 0)
+                            incodeindent = 0;
+                        if (!INSREP(" ", incodeindent))
+                            goto errorquit;
+                        // Add in the contents of this line:
                         int endlineidx = -1;
                         if (!_spew3d_markdown_process_inline_content(
                                 &resultchunk, &resultfill, &resultalloc,
@@ -3265,6 +3273,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                                 &endlineidx))
                             goto errorquit;
                         assert(endlineidx == i);
+                        if (!INS("\n"))
+                            goto errorquit;
                     }
                     i += 1;
                 }
