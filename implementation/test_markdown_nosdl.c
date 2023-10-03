@@ -437,6 +437,24 @@ START_TEST(test_markdown_tohtml)
             "<p>bla 2</p></li></ul>"));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "- **test:** bla\n"
+        );
+        printf("test_markdown_tohtml result #5: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ul><li><p><strong>test:</strong> bla</p></li></ul>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "a*b*c\n=====\n"
+        );
+        printf("test_markdown_tohtml result #6: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<h1>a<em>b</em>c</h1>"));
+        free(result);
+    }
 }
 END_TEST
 
