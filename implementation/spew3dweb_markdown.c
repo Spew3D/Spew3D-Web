@@ -2825,20 +2825,16 @@ static int _spew3d_markdown_process_inline_content(
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
-        int opt_allowunsafehtml,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
+        s3dw_markdown_tohtmloptions *options,
         size_t *out_len
         ) {
     // First, clean up the input:
     size_t inputlen = 0;
     char *input = _internal_spew3dweb_markdown_CleanByteBufEx(
         uncleaninput, uncleaninputlen,
-        1, 1, opt_allowunsafehtml, 1,
-        opt_uritransformcallback,
-        opt_uritransform_userdata,
+        1, 1, !options->block_unsafe_html, 1,
+        options->uritransform_callback,
+        options->uritransform_callback_userdata,
         &inputlen, NULL
     );
     if (!input)
@@ -3226,18 +3222,12 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
 
 S3DEXP char *spew3dweb_markdown_ToHTMLEx(
         const char *uncleaninput,
-        int opt_allowunsafehtml,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
+        s3dw_markdown_tohtmloptions *options,
         size_t *out_len
         ) {
     return spew3dweb_markdown_ByteBufToHTML(
         uncleaninput, strlen(uncleaninput),
-        opt_allowunsafehtml,
-        opt_uritransformcallback,
-        opt_uritransform_userdata,
+        options,
         out_len
     );
 }
@@ -3245,9 +3235,10 @@ S3DEXP char *spew3dweb_markdown_ToHTMLEx(
 S3DEXP char *spew3dweb_markdown_ToHTML(
         const char *uncleaninput
         ) {
+    s3dw_markdown_tohtmloptions options = {0};
     return spew3dweb_markdown_ByteBufToHTML(
         uncleaninput, strlen(uncleaninput),
-        1, NULL, NULL, NULL
+        &options, NULL
     );
 }
 

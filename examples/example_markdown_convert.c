@@ -112,9 +112,10 @@ int main(int argc, const char **argv) {
             free(chunk);
             break;
         }
+        s3dw_markdown_tohtmloptions options = {0};
+        options.uritransform_callback = our_little_uri_transform_helper;
         char *html = (chunk ? spew3dweb_markdown_ToHTMLEx(
-            chunk, 1, our_little_uri_transform_helper, NULL,
-            NULL) : NULL);
+            chunk, &options, NULL) : NULL);
         if (!chunk || !html) {
             free(chunk);
             free(html);
