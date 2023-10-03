@@ -203,30 +203,5 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     void *opt_uritransform_userdata
 );
 
-S3DHID int _internal_s3dw_markdown_ensurebufsize(
-    char **bufptr, size_t *bufalloc, size_t new_size
-);
-
-S3DHID int _internal_s3dw_markdown_bufappend(
-    char **bufptr, size_t *bufalloc, size_t *buffill,
-    const char *appendbuf, size_t appendbuflen, size_t amount
-);
-
-S3DHID int _internal_s3dw_markdown_bufappendstr(
-    char **bufptr, size_t *bufalloc, size_t *buffill,
-    const char *appendstr, size_t amount
-);
-
-S3DHID int _internal_s3dw_markdown_bufappendchar(
-    char **bufptr, size_t *bufallocptr, size_t *buffillptr,
-    char appendc, size_t amount
-);
-
-// (Warning, dangerous to increase since used on stack:)
-#define _S3D_MD_MAX_FORMAT_NESTING 6
-
-// (Warning, dangerous to increase since used on stack:)
-#define _S3D_MD_MAX_LIST_NESTING 12
-
 #endif  // SPEW3DWEB_MARKDOWN_H_
 
