@@ -455,6 +455,26 @@ START_TEST(test_markdown_tohtml)
             "<h1>a<em>b</em>c</h1>"));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "a*b*c [abc *def*](/some'target.md)\n=====\n"
+        );
+        printf("test_markdown_tohtml result #7: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<h1>a<em>b</em>c <a href='/some%27target.md'>"
+            "abc <em>def</em></a></h1>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "a*b*c [abc ![my image](/oops.png)*def*](/some'target.md)\n=====\n"
+        );
+        printf("test_markdown_tohtml result #8: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<h1>a<em>b</em>c <a href='/some%27target.md'>"
+            "abc <img src='/oops.png' alt='my image'/><em>def</em></a></h1>"));
+        free(result);
+    }
 }
 END_TEST
 

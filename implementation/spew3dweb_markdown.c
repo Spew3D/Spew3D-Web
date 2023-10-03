@@ -973,7 +973,7 @@ S3DEXP int spew3dweb_markdown_IsStrUrl(const char *test_str) {
     size_t test_str_len = strlen(test_str);
     if (test_str_len <= 0 || test_str[0] != '[')
         return 0;
-    int len = _internal_spew3dweb_markdown_GetLinkImgLen(
+    int len = _internal_spew3dweb_markdown_GetLinkOrImgLen(
         test_str, test_str_len, 0, 0,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
@@ -984,7 +984,7 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
     size_t test_str_len = strlen(test_str);
     if (test_str_len <= 0 || test_str[0] != '!')
         return 0;
-    int len = _internal_spew3dweb_markdown_GetLinkImgLen(
+    int len = _internal_spew3dweb_markdown_GetLinkOrImgLen(
         test_str, test_str_len, 0, 0,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
@@ -1322,7 +1322,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             int url_start, url_len;
             int prefix_url_linebreak_to_keep_formatting = 0;
             int imgwidth, imgheight;
-            int linklen = _internal_spew3dweb_markdown_GetLinkImgLen(
+            int linklen = _internal_spew3dweb_markdown_GetLinkOrImgLen(
                 input, inputlen, i, opt_forcelinksoneline,
                 &title_start, &title_len,
                 &url_start, &url_len,
@@ -1430,6 +1430,16 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                     continue;
                 } else if (input[i3] == '?') {
                     url_seen_questionmark = 1;
+                } else if (input[i3] == '\'') {
+                    memcpy(uribuf + uribuffill, "%27", 4);
+                    uribuffill += 3;
+                    i3 += 1;
+                    continue;
+                } else if (input[i3] == '"') {
+                    memcpy(uribuf + uribuffill, "%22", 4);
+                    uribuffill += 3;
+                    i3 += 1;
+                    continue;
                 } else if (input[i3] == '>') {
                     memcpy(uribuf + uribuffill, "%3E", 4);
                     uribuffill += 3;
@@ -1504,11 +1514,13 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
     int roundbracketnest = 0;
     int squarebracketnest = 0;
     int curlybracketnest = 0;
+    int in_inner_img_step = 0;
     int sawslash = 0;
     size_t i = offset;
     int isfirstline = 1;
     int currentlyemptyline = 1;
     while (i < inputlen && (input[i] != closebracket ||
+            (closebracket == ']' && in_inner_img_step > 0) ||
             roundbracketnest > 0 ||
             squarebracketnest > 0 ||
             curlybracketnest > 0)) {
@@ -1562,6 +1574,19 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
                 input[i - 1] == '\n'))
             // Looks more like text than an URL, doesn't it?
             return -1;
+        if (in_inner_img_step == 1 && input[i] == ']') {
+            in_inner_img_step = 2;
+            while (i < inputlen && (
+                    input[i] == ' ' || input[i] == '\t'))
+                i += 1;
+            if (i < inputlen && input[i] == '(')
+                i += 1;
+            continue;
+        }
+        if (in_inner_img_step == 2 && input[i] == ')') {
+            in_inner_img_step = 0;
+            continue;
+        }
         if (isurl && input[i] == '(') roundbracketnest += 1;
         if (isurl && input[i] == '[') squarebracketnest += 1;
         if (isurl && input[i] == '{') curlybracketnest += 1;
@@ -1581,6 +1606,14 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
                 input[i - 1] == '\t') && input[i + 1] == '-')
             // Looks like we ran into a markdown table, bail.
             return -1;
+        if (closebracket == ']' && input[i] == '!' &&
+                i + 1 < inputlen && input[i + 1] == '[' &&
+                in_inner_img_step == 0) {
+            // That seems to be a nested image.
+            in_inner_img_step = 1;
+            i += 2;
+            continue;
+        }
         if (!isurl && !isinlinecode && (
                 (closebracket == ']' && input[i] == '[')))
             // Title bracket inside a bracket? Probably not valid.
@@ -1625,7 +1658,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
     return i;
 }
 
-S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
+S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
         const char *input, size_t inputlen, size_t offset,
         int opt_trim_linebreaks_from_content,
         int *out_title_start, int *out_title_len,
@@ -2513,6 +2546,7 @@ static int _spew3d_markdown_process_inline_content(
                 linkend: ;
                 if (!INS("</a>"))  // Close link title
                     goto errorquit;
+                i = past_link_idx;
                 inside_linktitle_ends_at = 0;
                 continue;
             }
@@ -2521,6 +2555,7 @@ static int _spew3d_markdown_process_inline_content(
                 imgend: ;
                 if (!INS("'/>"))  // Close 'alt' attribute
                     goto errorquit;
+                i = past_image_idx;
                 inside_imgtitle_ends_at = 0;
                 continue;
             }
@@ -2718,13 +2753,14 @@ static int _spew3d_markdown_process_inline_content(
                     linebuf[i] == '[' &&
                     inside_imgtitle_ends_at == 0 &&
                     inside_linktitle_ends_at == 0)) {
+                int linkstarti = i;
                 int isimage = (linebuf[i] == '!');
                 int title_start, title_len;
                 int url_start, url_len;
                 int prefix_url_linebreak_to_keep_formatting = 0;
                 int imgwidth, imgheight;
                 size_t linklen = (
-                    _internal_spew3dweb_markdown_GetLinkImgLen(
+                    _internal_spew3dweb_markdown_GetLinkOrImgLen(
                         linebuf, ipastend, i, 1,
                         &title_start, &title_len,
                         &url_start, &url_len,
@@ -2740,6 +2776,7 @@ static int _spew3d_markdown_process_inline_content(
                         if (!INSC(linebuf[i]))
                             goto errorquit;
                     }
+                    continue;
                 } else {
                     if (isimage)
                         if (!INS("<img src='"))
@@ -2764,12 +2801,13 @@ static int _spew3d_markdown_process_inline_content(
                             inside_imgtitle_ends_at = (
                                 title_start + title_len
                             );
-                            past_image_idx = i + linklen;
+                            past_image_idx = linkstarti + linklen;
                         } else {
                             inside_linktitle_ends_at = (
-                                url_start + url_len
+                                title_start + title_len
                             );
-                            past_link_idx = i + linklen;
+                            i = title_start;
+                            past_link_idx = linkstarti + linklen;
                             if (!INS("'>"))
                                 goto errorquit;
                         }

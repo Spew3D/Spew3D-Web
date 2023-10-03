@@ -199,7 +199,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
     size_t *out_len, size_t *out_alloc
 );
 
-S3DHID int _internal_spew3dweb_markdown_GetLinkImgLen(
+S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
     const char *input, size_t inputlen, size_t offset,
     int trim_linebreaks_from_content,
     int *out_title_start, int *out_title_len,
