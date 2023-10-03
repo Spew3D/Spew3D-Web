@@ -63,12 +63,17 @@ START_TEST (test_uri)
     }
     {
         result = s3d_uri_ParseURIOrPath(
-            "test/LICENSE.md", "https"
+            "test/LICENSE big.md", "https"
         );
         ck_assert(result->protocol != NULL);
         ck_assert_str_eq(result->protocol, "file");
         ck_assert(result->resource != NULL);
-        ck_assert_str_eq(result->resource, "test/LICENSE.md");
+        ck_assert_str_eq(result->resource, "test/LICENSE big.md");
+        ck_assert(result->querystring == NULL);
+        ck_assert(result->anchor == NULL);
+        char *resultback = s3d_uri_ToStr(result);
+        ck_assert_str_eq(resultback, "file://test/LICENSE%20big.md");
+        free(resultback);
         s3d_uri_Free(result);
     }
 }

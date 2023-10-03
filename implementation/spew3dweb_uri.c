@@ -435,7 +435,8 @@ S3DEXP char *s3d_uri_PercentEncodeResourceEx(
     int buffill = 0;
     unsigned int i = 0;
     while (i < strlen(path)) {
-        if (path[i] == '%' ||
+        if (i >= donttouchbefore && (
+                path[i] == '%' ||
                 path[i] == '\\' ||
                 path[i] <= 32 ||
                 path[i] == ' ' || path[i] == '\t' ||
@@ -443,10 +444,10 @@ S3DEXP char *s3d_uri_PercentEncodeResourceEx(
                 path[i] == ':' || path[i] == '?' ||
                 path[i] == '&' || path[i] == '=' ||
                 path[i] == '\'' || path[i] == '"' ||
-                path[i] == '@' || path[i] == '#') {
+                path[i] == '@' || path[i] == '#')) {
             char hexval[6];
             snprintf(hexval, sizeof(hexval) - 1,
-                "%o", (int)(((uint8_t*)path)[i]));
+                "%x", (int)(((uint8_t*)path)[i]));
             hexval[2] = '\0';
             buf[buffill] = '%'; buffill++;
             unsigned int z = strlen(hexval);
@@ -497,7 +498,8 @@ S3DEXP char *s3d_uri_ToStrEx(
             ":%d", uinfo->port
         );
     }
-    char *path = strdup((uinfo->resource ? uinfo->resource : ""));
+    char *path = strdup((uinfo->resource ?
+        uinfo->resource : ""));
     if (!path)
         return NULL;
     if (uinfo->protocol && strcasecmp(uinfo->protocol, "file") == 0 &&
@@ -524,16 +526,14 @@ S3DEXP char *s3d_uri_ToStrEx(
     );
     if (!encodedquerystr) {
         free(encodedpath);
-        free(path);
         return NULL;
     }
     char *encodedanchorstr = s3d_uri_PercentEncodeResourceEx(
-        (uinfo->querystring ? uinfo->querystring : ""), 1
+        (uinfo->anchor ? uinfo->anchor : ""), 1
     );
     if (!encodedanchorstr) {
         free(encodedquerystr);
         free(encodedpath);
-        free(path);
         return NULL;
     }
 
@@ -548,21 +548,25 @@ S3DEXP char *s3d_uri_ToStrEx(
     ) + 10;
     char *buf = malloc(upperboundlen);
     if (!buf) {
+        free(encodedanchorstr);
+        free(encodedquerystr);
         free(encodedpath);
         return NULL;
     }
     snprintf(
         buf, upperboundlen - 1,
-        "%s://%s%s%s%s%s%s%s%s%s",
+        "%s://%s%s%s%s%s%s%s%s",
         uinfo->protocol,
         (uinfo->host ? uinfo->host : ""), portbuf,
         ((strlen((uinfo->host ? uinfo->host : "")) > 0 &&
           strlen(encodedpath) > 0 &&
           encodedpath[0] != '/') ? "/" : ""),
         encodedpath,
-        ((encodedquerystr[0] != '?') ? "?" : ""),
+        ((strlen(encodedquerystr) > 0 &&
+          encodedquerystr[0] != '?') ? "?" : ""),
         encodedquerystr,
-        ((encodedanchorstr[0] != '#') ? "#" : ""),
+        ((strlen(encodedanchorstr) > 0 &&
+          encodedanchorstr[0] != '#') ? "#" : ""),
         encodedanchorstr
     );
     free(encodedpath);
