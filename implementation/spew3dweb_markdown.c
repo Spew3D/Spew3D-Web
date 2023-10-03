@@ -2510,6 +2510,7 @@ static int _spew3d_markdown_process_inline_content(
         endbeforeline = endline + 1;
 
     size_t inside_linktitle_ends_at = 0;
+    int inside_linktitle_minimum_fnesting = 0;
     size_t past_link_idx = 0;
     size_t inside_imgtitle_ends_at = 0;
     size_t past_image_idx = 0;
@@ -2569,6 +2570,9 @@ static int _spew3d_markdown_process_inline_content(
                     goto errorquit;
                 i = past_link_idx;
                 inside_linktitle_ends_at = 0;
+                fnestingsdepth = (
+                    inside_linktitle_minimum_fnesting
+                );
                 continue;
             }
             if (inside_imgtitle_ends_at > 0 &&
@@ -2612,16 +2616,33 @@ static int _spew3d_markdown_process_inline_content(
                 int foundpastidx = -1;
                 int incode = 0;
                 size_t iline2 = iline;
+                const char *linebuf2 = lineinfo[iline2].linestart;
                 while (iline2 <= endline &&
                         (scantruncate == 0 ||
                         iline2 == iline)) {
-                    const char *linebuf2 = lineinfo[iline2].linestart;
                     while (i2 < i2pastend) {
                         if (linebuf2[i2] == '\\') {
                             i2 += 2;
                             continue;
                         }
                         if (linebuf2[i2] == '`') incode = !incode;
+                        // Skip over inline links and images,
+                        // so they can't mess our outer formatting:
+                        if (!incode && (linebuf2[i2] == '!' ||
+                                linebuf2[i2] == '[')) {
+                            size_t linklen = (
+                                _internal_spew3dweb_markdown_GetLinkOrImgLen(
+                                    linebuf2 + i2,
+                                    i2pastend - i2, 0, 1,
+                                    NULL, NULL, NULL, NULL,
+                                    NULL, NULL, NULL
+                                ));
+                            if (linklen > 0) {
+                                i2 += linklen;
+                                continue;
+                            }
+                        }
+
                         int _innerfmt, _innercanopen, _innercanclose;
                         _innerfmt = _md2html_get_inline_fmt_type(
                             linebuf2, ipastend, i2,
@@ -2632,7 +2653,11 @@ static int _spew3d_markdown_process_inline_content(
                                 i2 == i + _md2html_fmt_type_len(_fmttype))
                             _innercanclose = 0;
                         if (_innerfmt > 0 && !incode && _innercanclose &&
-                                fnestings[fnestingsdepth - 1] == _innerfmt) {
+                                fnestings[fnestingsdepth - 1] ==
+                                    _innerfmt &&
+                                (inside_linktitle_ends_at <= 0 ||
+                                fnestingsdepth >
+                                inside_linktitle_minimum_fnesting)) {
                             fnestingsdepth--;
                             if (fnestingsdepth <= previousnesting) {
                                 foundpastidx = i2 + (
@@ -2655,10 +2680,13 @@ static int _spew3d_markdown_process_inline_content(
                     }
                     if (foundpastidx >= 0)
                         break;
-                    i2 = lineinfo[iline2].indentlen;
-                    i2pastend = (lineinfo[iline2].indentlen +
-                        lineinfo[iline2].indentedcontentlen);
                     iline2 += 1;
+                    if (iline2 <= endline) {
+                        i2 = lineinfo[iline2].indentlen;
+                        i2pastend = (lineinfo[iline2].indentlen +
+                        lineinfo[iline2].indentedcontentlen);
+                        linebuf2 = lineinfo[iline2].linestart;
+                    }
                 }
                 if (foundpastidx < 0) {
                     // No matched end, invalid. Throw away.
@@ -2694,7 +2722,10 @@ static int _spew3d_markdown_process_inline_content(
                         linebuf, ipastend, i,
                         &_fmtcanopen, &_fmtcanclose
                     )) > 0 && _fmtcanclose &&
-                    fnestings[fnestingsdepth - 1] == _fmttype) {
+                    fnestings[fnestingsdepth - 1] == _fmttype &&
+                    (inside_linktitle_ends_at <= 0 ||
+                    fnestingsdepth >
+                    inside_linktitle_minimum_fnesting)) {
                 // Close corresponding formatting again.
                 fnestingsdepth -= 1;
                 if (_fmttype == _FORMAT_TYPE_ASTERISK1) {
@@ -2837,6 +2868,9 @@ static int _spew3d_markdown_process_inline_content(
                         } else {
                             inside_linktitle_ends_at = (
                                 title_start + title_len
+                            );
+                            inside_linktitle_minimum_fnesting = (
+                                fnestingsdepth
                             );
                             i = title_start;
                             past_link_idx = linkstarti + linklen;

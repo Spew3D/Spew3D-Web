@@ -476,10 +476,37 @@ START_TEST(test_markdown_tohtml)
         result = spew3dweb_markdown_ToHTML(
             "# [abc](https://example.com/)\ntoast\n"
         );
-        printf("test_markdown_tohtml result #8: <<%s>>\n", result);
+        printf("test_markdown_tohtml result #9: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
             "<h1><a href='https://example.com/' "
             "rel=noopener target=_blank>abc</a></h1><p>toast</p>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "*(ab,\n[abc](abc))*"
+        );
+        printf("test_markdown_tohtml result #10: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p><em>(ab, <a href='abc'>abc</a>)</em></p>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "*a[b*](c)*d"
+        );
+        printf("test_markdown_tohtml result #11: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p><em>a<a href='c'>b*</a></em>d</p>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "abc```\ndef```"
+        );
+        printf("test_markdown_tohtml result #12: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p>abc</p><pre><code>def\n</code></pre>"));
         free(result);
     }
 }
