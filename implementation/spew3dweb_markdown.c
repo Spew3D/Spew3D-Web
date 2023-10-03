@@ -1547,6 +1547,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
             return -1;
         if (in_inner_img_step == 1 && input[i] == ']') {
             in_inner_img_step = 2;
+            i += 1;
             while (i < inputlen && (
                     input[i] == ' ' || input[i] == '\t'))
                 i += 1;
@@ -1556,6 +1557,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
         }
         if (in_inner_img_step == 2 && input[i] == ')') {
             in_inner_img_step = 0;
+            i += 1;
             continue;
         }
         if (isurl && input[i] == '(') roundbracketnest += 1;
@@ -2747,6 +2749,7 @@ static int _spew3d_markdown_process_inline_content(
                         if (!INSC(linebuf[i]))
                             goto errorquit;
                     }
+                    i += 1;
                     continue;
                 } else {
                     if (isimage)
