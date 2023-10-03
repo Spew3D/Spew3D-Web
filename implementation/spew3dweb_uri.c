@@ -551,10 +551,6 @@ S3DEXP char *s3d_uri_ToStrEx(
         free(encodedpath);
         return NULL;
     }
-    printf("OOP OOP %s\n", encodedpath);
-    printf("xx\n");
-    printf("EEP OOP %s\n", uinfo->querystring);
-    printf("ERP ERP %s\n", uinfo->anchor);
     snprintf(
         buf, upperboundlen - 1,
         "%s://%s%s%s%s%s%s%s%s%s",
