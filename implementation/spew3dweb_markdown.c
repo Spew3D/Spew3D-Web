@@ -1519,13 +1519,13 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
                 _lineonlycontinuouschar(
                     input, inputlen, i, input[i]
                 ))
-            // Looks like a --- or === header.
+            // Looks like a --- or === heading.
             return -1;
         if (input[i] == '#' && i + 1 < inputlen &&
                 wascurrentlyemptyline && !isinlinecode &&
                 (input[i + 1] == ' ' || input[i + 1] == '\t' ||
                 input[i + 1] == '#'))
-            // Looks like a # ..text.. header.
+            // Looks like a # ..text.. heading.
             return -1;
         if (input[i] == ' ' && i + 2 < inputlen && isurl &&
                 input[i + 1] == ' ' && !currentlyemptyline &&
@@ -2443,6 +2443,52 @@ static char _md2html_get_inline_fmt_type(
     return 0;
 }
 
+static int _m2html_check_line_has_link(
+        _markdown_lineinfo *lineinfo, size_t linei, size_t i
+        ) {
+    size_t starti = i;
+    size_t len = (lineinfo[linei].indentlen +
+        lineinfo[linei].indentedcontentlen);
+    while (i < len) {
+        if (lineinfo[linei].linestart[i] == '[') {
+            size_t linklen = (
+                _internal_spew3dweb_markdown_GetLinkOrImgLen(
+                    lineinfo[linei].linestart, len, i, 1,
+                    NULL, NULL, NULL, NULL, NULL, NULL, NULL
+                ));
+            if (linklen > 0)
+                return 1;
+        } else if (lineinfo[linei].linestart[i] == '\\') {
+            i += 2;
+            continue;
+        }
+        i += 1;
+    }
+    return 0;
+}
+
+static int _is_guaranteed_ext_link(
+        const char *linkbytes, size_t byteslen
+        ) {
+    size_t i = 0;
+    while (i < byteslen) {
+        if (linkbytes[i] == '?' || linkbytes[i] == '#' ||
+                (linkbytes[i] == ':' && (
+                i + 1 >= byteslen || linkbytes[i + 1] != '/')) ||
+                linkbytes[i] == '\t' || linkbytes[i] == '\r' ||
+                linkbytes[i] == '\n' ||
+                linkbytes[i] == ' ' || linkbytes[i] == '.')
+            return 0;
+        if (linkbytes[i] == ':') {
+            return (i + 2 < byteslen &&
+                linkbytes[i + 1] == '/' &&
+                linkbytes[i + 2] == '/');
+        }
+        i += 1;
+    }
+    return 0;
+}
+
 static int _spew3d_markdown_process_inline_content(
         char **resultchunkptr, size_t *resultfillptr,
         size_t *resultallocptr,
@@ -2450,7 +2496,9 @@ static int _spew3d_markdown_process_inline_content(
         int startline, int endbeforeline,
         int start_at_content_index,
         int as_code, int isinheading,
-        int *out_endlineidx) {
+        s3dw_markdown_tohtmloptions *options,
+        int *out_endlineidx
+        ) {
     char *resultchunk = *resultchunkptr;
     size_t resultfill = *resultfillptr;
     size_t resultalloc = *resultallocptr;
@@ -2758,6 +2806,16 @@ static int _spew3d_markdown_process_inline_content(
                     if (!isimage)
                         if (!INS("<a href='"))
                             goto errorquit;
+                    int add_rel_noopener = 0;
+                    int add_target_blank = 0;
+                    if (_is_guaranteed_ext_link(
+                            linebuf + url_start, url_len
+                            )) {
+                        if (!options->externallinks_no_target_blank)
+                            add_target_blank = 1;
+                        if (!options->externallinks_no_rel_noopener)
+                            add_rel_noopener = 1;
+                    }
                     if (!INSBUF(linebuf + url_start,
                             url_len))
                         goto errorquit;
@@ -2782,7 +2840,15 @@ static int _spew3d_markdown_process_inline_content(
                             );
                             i = title_start;
                             past_link_idx = linkstarti + linklen;
-                            if (!INS("'>"))
+                            if (!INS("'"))
+                                goto errorquit;
+                            if (add_rel_noopener)
+                                if (!INS(" rel=noopener"))
+                                    goto errorquit;
+                            if (add_target_blank)
+                                if (!INS(" target=_blank"))
+                                    goto errorquit;
+                            if (!INS(">"))
                                 goto errorquit;
                         }
                         continue;
@@ -2822,6 +2888,57 @@ static int _spew3d_markdown_process_inline_content(
 #undef _FORMAT_TYPE_ASTERISK2
 #undef _FORMAT_TYPE_UNDERLINE2
 #undef _FORMAT_TYPE_TILDE2
+
+S3DEXP char *spew3dweb_markdown_MarkdownBytesToAnchor(
+        const char *bytebuf, size_t bytebuflen
+        ) {
+    int resultalloc = 64;
+    int resultfill = 0;
+    char *result = malloc(resultalloc);
+    if (!result)
+        return NULL;
+    size_t i = 0;
+    while (i < bytebuflen) {
+        if (resultfill + 2 >= resultalloc) {
+            char *newresult = realloc(result, resultalloc * 2);
+            if (!newresult) {
+                free(result);
+                return NULL;
+            }
+            resultalloc *= 2;
+        }
+        if (bytebuf[i] == ' ' || bytebuf[i] < 32 ||
+                bytebuf[i] == '>' || bytebuf[i] == '<' ||
+                bytebuf[i] == '(' || bytebuf[i] == ')' ||
+                bytebuf[i] == '[' || bytebuf[i] == ']' ||
+                bytebuf[i] == ',' || bytebuf[i] == ';' ||
+                bytebuf[i] == ':' || bytebuf[i] == '.' ||
+                bytebuf[i] == '\r' || bytebuf[i] == '/' || (
+                bytebuf[i] == '\\' && i + 1 < bytebuflen &&
+                bytebuf[i + 1] == '\\')) {
+            if (resultfill > 0 && result[resultfill - 1] != '-') {
+                result[resultfill] = '-';
+                resultfill += 1;
+            }
+            i += 1;
+            continue;
+        } else if (bytebuf[i] == '\\' || (bytebuf[i] < 127 &&
+                (bytebuf[i] < 'a' || bytebuf[i] > 'z') &&
+                (bytebuf[i] < 'A' || bytebuf[i] > 'Z') &&
+                (bytebuf[i] < '0' || bytebuf[i] > '9'))) {
+            i += 1;
+            continue;
+        }
+        result[resultfill] = bytebuf[i];
+        resultfill += 1;
+        i += 1;
+    }
+    while (resultfill > 0 &&
+            result[resultfill - 1] == '-')
+        resultfill--;
+    result[resultfill] = '\0';
+    return result;
+}
 
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
@@ -3119,18 +3236,57 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     if (i2 < lineinfo[i].indentedcontentlen &&
                             lineinfo[i].linestart[i2] != '#') {
                         // This is indeed a heading. Process insides:
+                        int doanchor = 0;
+                        if (!options->disable_heading_anchors) {
+                            doanchor = !_m2html_check_line_has_link(
+                                lineinfo, i, 0
+                            );
+                        }
                         if (!INS("<h"))
                             goto errorquit;
                         if (!INSC('0' + headingtype))
                             goto errorquit;
                         if (!INS(">"))
                             goto errorquit;
+                        if (doanchor) {
+                            char *name = (
+                                spew3dweb_markdown_MarkdownBytesToAnchor(
+                                    lineinfo[i].linestart + i2,
+                                    (lineinfo[i].indentlen +
+                                    lineinfo[i].indentedcontentlen) - i2
+                                ));
+                            if (!name)
+                                goto errorquit;
+                            if (!INS("<a name='")) {
+                                free(name);
+                                goto errorquit;
+                            }
+                            if (!INS(name)) {
+                                free(name);
+                                goto errorquit;
+                            }
+                            if (!INS("' href='#")) {
+                                free(name);
+                                goto errorquit;
+                            }
+                            if (!INS(name)) {
+                                free(name);
+                                goto errorquit;
+                            }
+                            free(name);
+                            if (!INS("'>"))
+                                goto errorquit;
+                        }
                         int endlineidx = -1;
                         if (!_spew3d_markdown_process_inline_content(
                                 &resultchunk, &resultfill, &resultalloc,
                                 lineinfo, lineinfofill, i, i + 1,
-                                i2, 0, 1, &endlineidx))
+                                i2, 0, 1, options, &endlineidx))
                             goto errorquit;
+                        if (doanchor) {
+                            if (!INS("</a>"))
+                                goto errorquit;
+                        }
                         if (!INS("</h"))
                             goto errorquit;
                         if (!INSC('0' + headingtype))
@@ -3159,7 +3315,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     &resultchunk, &resultfill, &resultalloc,
                     lineinfo, lineinfofill, i, i + 1, 0,
                     1 /* as code, no formatting */,
-                    0, &endlineidx))
+                    0, options, &endlineidx))
                 goto errorquit;
             if (!INS("\n"))
                 goto errorquit;
@@ -3171,13 +3327,47 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 _m2htmlline_line_get_next_line_heading_strength(
                     lineinfo, lineinfofill, i
                 ));
+            int doanchor = 0;
             if (headingtype > 0) {
+                if (!options->disable_heading_anchors)
+                    doanchor = !_m2html_check_line_has_link(
+                        lineinfo, i, 0
+                    );
                 if (!INS("<h"))
                     goto errorquit;
                 if (!INSC('0' + headingtype))
                     goto errorquit;
                 if (!INS(">"))
                     goto errorquit;
+                if (doanchor) {
+                    char *name = (
+                        spew3dweb_markdown_MarkdownBytesToAnchor(
+                            lineinfo[i].linestart,
+                            (lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen)
+                        ));
+                    if (!name)
+                        goto errorquit;
+                    if (!INS("<a name='")) {
+                        free(name);
+                        goto errorquit;
+                    }
+                    if (!INS(name)) {
+                        free(name);
+                        goto errorquit;
+                    }
+                    if (!INS("' href='#")) {
+                        free(name);
+                        goto errorquit;
+                    }
+                    if (!INS(name)) {
+                        free(name);
+                        goto errorquit;
+                    }
+                    free(name);
+                    if (!INS("'>"))
+                        goto errorquit;
+                }
             } else {
                 if (!INS("<p>"))
                     goto errorquit;
@@ -3186,11 +3376,15 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             if (!_spew3d_markdown_process_inline_content(
                     &resultchunk, &resultfill, &resultalloc,
                     lineinfo, lineinfofill, i, lineinfofill, 0,
-                    0, (headingtype != 0),
+                    0, (headingtype != 0), options,
                     &endlineidx))
                 goto errorquit;
             if (headingtype != 0) {
                 assert(endlineidx == i);
+                if (doanchor) {
+                    if (!INS("</a>"))
+                        goto errorquit;
+                }
                 if (!INS("</h"))
                     goto errorquit;
                 if (!INSC('0' + headingtype))

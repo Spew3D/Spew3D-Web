@@ -394,11 +394,12 @@ START_TEST(test_markdown_tohtml)
     char *result;
     {
         result = spew3dweb_markdown_ToHTML(
-            "# abc\ndef"
+            "# abc def\ndef"
         );
         printf("test_markdown_tohtml result #1: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
-            "<h1>abc</h1>\n<p>def</p>"));
+            "<h1><a name='abc-def' href='#abc-def'>"
+            "abc def</a></h1>\n<p>def</p>"));
         free(result);
     }
     {
@@ -428,7 +429,8 @@ START_TEST(test_markdown_tohtml)
         );
         printf("test_markdown_tohtml result #4: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
-            "<ul><li><h1>abc</h1><p>bla</p>"
+            "<ul><li><h1><a name='abc' href='#abc'>"
+            "abc</a></h1><p>bla</p>"
             "<p>bla 2</p></li></ul>"));
         free(result);
     }
@@ -447,7 +449,7 @@ START_TEST(test_markdown_tohtml)
         );
         printf("test_markdown_tohtml result #6: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
-            "<h1>a<em>b</em>c</h1>"));
+            "<h1><a name='abc' href='#abc'>a<em>b</em>c</a></h1>"));
         free(result);
     }
     {
@@ -468,6 +470,16 @@ START_TEST(test_markdown_tohtml)
         assert(_s3dw_check_html_same(result,
             "<h1>a<em>b</em>c <a href='/some%27target.md'>"
             "abc <img src='/oops.png' alt='my image'/><em>def</em></a></h1>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "# [abc](https://example.com/)\ntoast\n"
+        );
+        printf("test_markdown_tohtml result #8: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<h1><a href='https://example.com/' "
+            "rel=noopener target=_blank>abc</a></h1><p>toast</p>"));
         free(result);
     }
 }

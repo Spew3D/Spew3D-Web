@@ -75,8 +75,13 @@ S3DEXP char *spew3dweb_markdown_CleanEx(
 
 S3DEXP char *spew3dweb_markdown_Clean(const char *uncleanstr);
 
+S3DEXP char *spew3dweb_markdown_MarkdownBytesToAnchor(
+    const char *bytebuf, size_t bytebuflen
+);
+
 typedef struct s3dw_markdown_tohtmloptions {
     int block_unsafe_html;
+    int disable_heading_anchors;
     char *(*uritransform_callback)(
         const char *uri, void *userdata
     );
