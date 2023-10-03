@@ -171,6 +171,26 @@ static int _uri_set_resource_from_uri_encoded_str(
     return 1;
 }
 
+static int _clearlynotremotehostname(const char *s, int maxlen) {
+    if (maxlen < 0) maxlen = strlen(s);
+    int haddot = 0;
+    int i = 0;
+    while (i < maxlen) {
+        if (s[i] == '.') haddot = 1;
+        if (s[i] != '.' && s[i] != '-' && s[i] < 127 && (
+                (s[i] < 'a' || s[i] > 'z') &&
+                (s[i] < 'A' || s[i] > 'Z') &&
+                (s[i] < '0' || s[i] > '9')))
+            return 1;
+        if (s[i] == '.' && ((i == 0 ||
+                s[i - 1] == '.') ||
+                i == maxlen - 1))
+            return 1;
+        i += 1;
+    }
+    return !haddot;
+}
+
 S3DHID s3duri *_internal_s3d_uri_ParseEx(
         const char *uristr,
         const char *default_remote_protocol,
@@ -336,8 +356,10 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         lastdotindex = -1;
     } else if ((*part == '/' || *part == '\0' ||
             *part == '#' || *part == '?') &&
-            result->protocol &&
-            strcasecmp(result->protocol, "file") != 0) {
+            ((result->protocol != NULL &&
+            strcasecmp(result->protocol, "file") != 0) ||
+            (!_clearlynotremotehostname(part_start, part - part_start) &&
+            strcasecmp(default_relative_path_protocol, "file") != 0))) {
         // We've had a protocol in front, so first slash ends host:
         result->host = malloc(part - part_start + 1);
         if (!result->host) {
@@ -348,6 +370,13 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         result->host[part - part_start] = '\0';
         part_start = part;
         lastdotindex = -1;
+        if (result->protocol == NULL) {
+            result->protocol = strdup(default_relative_path_protocol);
+            if (!result->protocol) {
+                s3d_uri_Free(result);
+                return NULL;
+            }
+        }
     }
 
     // If we have still no guess, look out for telltale characters:
@@ -588,55 +617,147 @@ S3DEXP void s3d_uri_Free(s3duri *uri) {
     free(uri);
 }
 
-S3DEXP int s3d_uri_HasFileExtension(
-        s3duri *uri, const char *extension
+S3DEXP int s3d_uri_HasFileExtensionEx(
+        const char *uri, const char *extension,
+        int treat_as_local_disk_path
         ) {
-    int i = strlen(uri->resource) - 1;
-    while (i >= 0 && uri->resource[i] != '.') {
-        if (uri->resource[i] == '/')
+    int urilen = 0;
+    if (!treat_as_local_disk_path) {
+        while (urilen < strlen(uri) &&
+                (uri[urilen - 1] != '?' &&
+                uri[urilen - 1] != '#'))
+            urilen++;
+    } else {
+        urilen = strlen(uri);
+    }
+    int i = urilen - 1;
+    while (i >= 0 && uri[i] != '.') {
+        if (uri[i] == '/')
             break;
         i--;
     }
-    if (i < 0 || uri->resource[i] != '.') {
+    if (i < 0 || uri[i] != '.') {
         return (strlen(extension) == 0);
     }
     if (extension[0] != '.' && strlen(extension) > 0)
         i += 1;
-    return (strcasecmp(uri->resource + i, extension) == 0);
+    if (urilen - i != strlen(extension))
+        return 0;
+    return (memcmp(uri + i, extension,
+        strlen(extension) == 0) == 0);
 }
 
-S3DEXP int s3d_uri_SetFileExtension(
-        s3duri *uri, const char *new_extension
+S3DEXP int s3d_uri_HasFileExtension(
+        const char *uri, const char *extension
         ) {
-    int i = strlen(uri->resource) - 1;
-    while (i >= 0 && uri->resource[i] != '.') {
-        if (uri->resource[i] == '/')
+    return s3d_uri_HasFileExtensionEx(uri, extension, 0);
+}
+
+S3DEXP s3duri *s3d_uri_FromFilePathEx(
+        const char *certain_file_path,
+        int always_allow_windows_separator,
+        int disable_windows_separator
+        ) {
+    int allow_windows_separator = (
+        #if defined(_WIN32) || defined(_WIN64)
+        !disable_windows_separator
+        #else
+        always_allow_windows_separator
+        #endif
+    );
+    char *pathcopy = strdup(certain_file_path);
+    if (!pathcopy)
+        return NULL;
+    int i = 0;
+    while (i < strlen(pathcopy)) {
+        if (allow_windows_separator &&
+                pathcopy[i] == '\\') {
+            pathcopy[i] = '/';
+        }
+        i += 1;
+    }
+    char *encoded = s3d_uri_PercentEncodeResource(
+        pathcopy
+    );
+    free(pathcopy); pathcopy = NULL;
+    if (!encoded)
+        return NULL;
+    s3duri *result = malloc(sizeof(*result));
+    if (!result) {
+        free(encoded);
+        return NULL;
+    }
+    memset(result, 0, sizeof(*result));
+    result->resource = encoded;
+    result->protocol = strdup("file");
+    if (!result->protocol) {
+        s3d_uri_Free(result);
+        return NULL;
+    }
+    return result;
+}
+
+S3DEXP s3duri *s3d_uri_FromFilePath(
+        const char *certain_file_path
+        ) {
+    return s3d_uri_FromFilePathEx(
+        certain_file_path, 0, 0
+    );
+}
+
+S3DEXP char *s3d_uri_SetFileExtensionEx(
+        const char *uri, const char *new_extension,
+        int treat_as_local_disk_path
+        ) {
+    int urilen = 0;
+    if (!treat_as_local_disk_path) {
+        while (urilen < strlen(uri) &&
+                (uri[urilen - 1] != '?' &&
+                uri[urilen - 1] != '#'))
+            urilen++;
+    } else {
+        urilen = strlen(uri);
+    }
+    int i = urilen - 1;
+    while (i >= 0 && uri[i] != '.') {
+        if (uri[i] == '/')
             break;
         i--;
     }
-    if (i < 0 || uri->resource[i] != '.') {
-        i = strlen(uri->resource);
+    if (i < 0 || uri[i] != '.') {
+        i = urilen;
     }
-    assert(i >= 0 && i <= strlen(uri->resource));
-    char *new_resource = malloc(
-        i + 1 + strlen(new_extension) + 1
+    int traillen = strlen(uri) - urilen;
+    assert(i >= 0 && i <= strlen(uri));
+    char *new_uri = malloc(
+        i + 1 + strlen(new_extension) + traillen + 1
     );
-    if (!new_resource) {
+    if (!new_uri)
         return 0;
-    }
-    memcpy(new_resource, uri->resource, i);
-    char *write = new_resource + i;
+    char *write = new_uri;
+    memcpy(write, uri, i);
+    write += i;
     if (strlen(new_extension) > 0 &&
             new_extension[0] != '.') {
         *write = '.';
         write++;
     }
-    memcpy(write, new_extension, strlen(new_extension) + 1);
-    assert(write[strlen(new_extension)] == '\0');
-    free(uri->resource);
-    uri->resource = new_resource;
+    memcpy(write, new_extension, strlen(new_extension));
+    write += strlen(new_extension);
+    if (traillen > 0) {
+        memcpy(write, uri + i, traillen);
+        write += traillen;
+    }
+    *write = '\0';
+    return new_uri;
+}
 
-    return 1;
+S3DEXP char *s3d_uri_SetFileExtension(
+        const char *uri, const char *new_extension
+        ) {
+    return s3d_uri_SetFileExtensionEx(
+        uri, new_extension, 0
+    );
 }
 
 #endif  // SPEW3DWEB_IMPLEMENTATION

@@ -54,8 +54,10 @@ typedef struct s3duri {
 /// a website's relative URIs without protocol, like
 /// `subfolder/test.html`, may be wrongly guessed as a disk path.
 /// Nevertheless, on Linux it's possible to name files to contain
-/// a literal `://` URI in which case it's still not guaranteed to
-/// be picked up as a file path.
+/// a literal `://` URI in which case **it's still possible not to
+/// be picked up as a file path even if it was one.** (To convert
+/// an absolutely certain file path to a URI with no guessing, use
+/// @{s3d_uri_FromFilePath} instead, not this function.)
 ///
 /// @param uri_or_file_str The URI or file path string to be parsed.
 /// @param default_remote_protocol Best set to `"https"`,
@@ -63,9 +65,31 @@ typedef struct s3duri {
 /// @returns The parsed result, or NULL on allocation failure.
 ///   The parser always guesses something, so there's no parse failure
 ///   other than out of memory.
-s3duri *s3d_uri_ParseURIOrPath(
+S3DEXP s3duri *s3d_uri_ParseURIOrPath(
     const char *uri_or_file_str,
     const char *default_remote_protocol
+);
+
+/// Use this function to convert a string that is absolutely certainly
+/// a file path (and not a `file://` URI!) to an @{URI object|s3duri}.
+/// If you want it as an URI string, use @{s3d_uri_ToStr} on it
+/// afterward.
+/// @returns The new URI object created from the disk path
+S3DEXP s3duri *s3d_uri_FromFilePath(
+    const char *certain_file_path
+);
+
+/// Like @{s3d_uri_FromFilePath}, but allows configuring separators.
+/// @param always_allow_windows_separators Whether to allow
+///   Windows backslash separators on Linux as well. Set 1 to allow,
+///   0 to not allow. Defaults to 0.
+/// @param disable_windows_separators Whether to not allow
+///   Windows backslash separators even when running on Windows.
+///   Set 1 to allow, 0 to not allow. Defaults to 0.
+S3DEXP s3duri *s3d_uri_FromFilePathEx(
+    const char *certain_file_path,
+    int always_allow_windows_separators,
+    int disable_windows_separators
 );
 
 /// This function is like the s3d_uri_ParseURIOrPath function, but
@@ -82,7 +106,7 @@ s3duri *s3d_uri_ParseURIOrPath(
 /// @returns The parsed result, or NULL on allocation failure.
 ///   The parser always guesses something, so there's no parse failure
 ///   other than out of memory.
-s3duri *s3d_uri_ParseURI(
+S3DEXP s3duri *s3d_uri_ParseURI(
     const char *uristr,
     const char *default_remote_protocol
 );
@@ -101,18 +125,22 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
 ///     `"file://"` URI but with a relative path, resolve to an absolute
 ///     path given the working directory.
 /// @returns The normalized URI string, or NULL if out of memory.
-char *s3d_uri_Normalize(const char *uristr, int absolutefilepaths);
+S3DEXP char *s3d_uri_Normalize(
+    const char *uristr, int absolutefilepaths
+);
 
 /// Destroy the given `s3duri` struct, freeing memory of all
 /// members.
-void s3d_uri_Free(s3duri *uri);
+S3DEXP void s3d_uri_Free(s3duri *uri);
 
 /// Return an URI percent encoded string from the given unencoded
 /// resource string.
 ///
 /// @param resource The resource string to be URL percent encoded.
 /// @returns The URI percent encoded string, or NULL if out of memory.
-S3DEXP char *s3d_uri_PercentEncodeResource(const char *resource);
+S3DEXP char *s3d_uri_PercentEncodeResource(
+    const char *resource
+);
 
 /// Like @{s3d_uri_PercentEncodeResource}, but more options.
 ///
@@ -142,18 +170,21 @@ S3DEXP char *s3d_uri_ToStrEx(
 S3DEXP char *s3d_uri_ToStr(s3duri *uri);
 
 /// Check if the URI's resource has the given file extension or not.
+/// Please note before using this on file paths, you should convert
+/// them to `file://` URIs first.
 /// @returns 1 if the extension matches, 0 if not.
 S3DEXP int s3d_uri_HasFileExtension(
-    s3duri *uri, const char *extension
+    const char *uri, const char *extension
 );
 
 /// Set the URI's resource to have the given file extension.
 /// If it had a previous file extension that one will be truncated
-/// first.
+/// first. Please note before using this on file paths, you should
+/// convert them to `file://` URIs first.
 /// @returns 0 on out of memory which will leave the URI unchanged,
 ///   otherwise 1.
-S3DEXP int s3d_uri_SetFileExtension(
-    s3duri *uri, const char *new_extension
+S3DEXP char *s3d_uri_SetFileExtension(
+    const char *uri, const char *new_extension
 );
 
 #endif  // SPEW3DWEB_URI_H_

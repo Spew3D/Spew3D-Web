@@ -36,7 +36,7 @@ license, see accompanied LICENSE.md.
 
 #include "testmain.h"
 
-START_TEST (test_uri)
+START_TEST (test_uri_parse)
 {
     s3duri *result = NULL;
     {
@@ -65,9 +65,7 @@ START_TEST (test_uri)
         result = s3d_uri_ParseURIOrPath(
             "test/LICENSE big.md", "https"
         );
-        ck_assert(result->protocol != NULL);
         ck_assert_str_eq(result->protocol, "file");
-        ck_assert(result->resource != NULL);
         ck_assert_str_eq(result->resource, "test/LICENSE big.md");
         ck_assert(result->querystring == NULL);
         ck_assert(result->anchor == NULL);
@@ -76,8 +74,40 @@ START_TEST (test_uri)
         free(resultback);
         s3d_uri_Free(result);
     }
+    {
+        result = s3d_uri_ParseURI(
+            "LICENSE.md", "https"
+        );
+        ck_assert_str_eq(result->protocol, "https");
+        ck_assert_str_eq(result->host, "LICENSE.md");
+        ck_assert_str_eq(result->resource, "/");
+        s3d_uri_Free(result);
+    }
+    {
+        result = s3d_uri_ParseURIOrPath(
+            "LICENSE.md", "https"
+        );
+        ck_assert_str_eq(result->protocol, "file");
+        ck_assert_str_eq(result->host, NULL);
+        ck_assert_str_eq(result->resource, "LICENSE.md");
+        s3d_uri_Free(result);
+    }
 }
 END_TEST
 
-TESTS_MAIN(test_uri)
+START_TEST (test_uri_fromfilepath)
+{
+    {
+        s3duri *result = s3d_uri_FromFilePath(
+            "LICENSE%20.md"
+        );
+        ck_assert_str_eq(result->protocol, "file");
+        ck_assert_str_eq(result->host, NULL);
+        ck_assert_str_eq(result->resource, "LICENSE%2520.md");
+        s3d_uri_Free(result);
+    }
+}
+END_TEST
+
+TESTS_MAIN(test_uri_parse, test_uri_fromfilepath)
 

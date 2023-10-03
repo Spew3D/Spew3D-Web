@@ -47,23 +47,16 @@ char *our_little_uri_transform_helper(
     if (!replace_ext_new)
         return strdup(uristr);
 
-    s3duri *uri = s3d_uri_ParseURI(uristr, "https");
-    if (!uri)
-        return NULL;
-
     if (replace_ext_old &&
-            !s3d_uri_HasFileExtension(uri, replace_ext_old)) {
-        s3d_uri_Free(uri);
+            !s3d_uri_HasFileExtension(uristr, replace_ext_old)
+            ) {
         return strdup(uristr);
     }
 
-    if (!s3d_uri_SetFileExtension(uri, replace_ext_new)) {
-        s3d_uri_Free(uri);
-        return NULL;
-    }
-    char *result = s3d_uri_ToStr(uri);
-    s3d_uri_Free(uri);
-    return result;
+    char *newuristr = (
+        s3d_uri_SetFileExtension(uristr, replace_ext_new)
+    );
+    return newuristr;
 }
 
 int main(int argc, const char **argv) {
