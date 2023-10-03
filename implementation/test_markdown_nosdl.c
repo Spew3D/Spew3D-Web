@@ -297,6 +297,15 @@ START_TEST(test_markdown_clean)
             "     def\n    ```\n    bla\n") == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "abc```\ndef```\n"
+        );
+        printf("test_markdown_clean result #25: <<%s>>\n", result);
+        assert(strcmp(result, "abc\n```\ndef\n```\n"
+                      ) == 0);
+        free(result);
+    }
 }
 END_TEST
 

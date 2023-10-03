@@ -906,6 +906,8 @@ S3DEXP int spew3dweb_markdown_GetBacktickByteBufLangPrefixLen(
                 block[i] == '|' ||
                 block[i] == '\'' ||
                 block[i] == '"' ||
+                block[i] == '>' ||
+                block[i] == '\'' ||
                 block[i] == '<' ||
                 block[i] == '{')
             return 0;
@@ -2208,6 +2210,7 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             if (i2 < 0)
                 return NULL;
             assert(i2 > i);
+            currentlinehadnonwhitespace = 1;
             i = i2;
             continue;
         }
@@ -3199,6 +3202,47 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         lineinfo[i].indentlen +
                         lineinfo[i].indentedcontentlen, j
                     ));
+                if (!INS("<pre><code"))
+                    goto errorquit;
+                if (langnamelen > 0) {
+                    if (!INS(" lang='"))
+                        goto errorquit;
+                    int jend = j + langnamelen;
+                    while (j < jend) {
+                        if (lineinfo[i].linestart[j] == '&') {
+                            if (!INS("&amp;"))
+                                goto errorquit;
+                        } else if (lineinfo[i].linestart[j] != '\'') {
+                            if (!INSC(lineinfo[i].linestart[j]))
+                                goto errorquit;
+                        }
+                        j += 1;
+                    }
+                    if (!INS("'>"))
+                        goto errorquit;
+                    while (j < lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen && (
+                            lineinfo[i].linestart[j] == ' ' ||
+                            lineinfo[i].linestart[j] == '\t'))
+                        j += 1;
+                    if (j < lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen) {
+                        if (!INSREP(" ", lineinfo[i].indentlen))
+                            goto errorquit;
+                        int endlineidx = -1;
+                        if (!_spew3d_markdown_process_inline_content(
+                                &resultchunk, &resultfill, &resultalloc,
+                                lineinfo, lineinfofill, i, i, j,
+                                1, 0, options,
+                                &endlineidx))
+                            goto errorquit;
+                        if (!INS("\n"))
+                            goto errorquit;
+                    }
+                } else {
+                    if (!INS(">"))
+                        goto errorquit;
+                }
                 i += 1;
                 while (i < lineinfofill) {
                     j = lineinfo[i].indentlen;
@@ -3224,6 +3268,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     }
                     i += 1;
                 }
+                if (!INS("</code></pre>"))
+                    goto errorquit;
                 continue;
             } else if ((lineinfo[i].indentedcontentlen >= 2 && (
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
