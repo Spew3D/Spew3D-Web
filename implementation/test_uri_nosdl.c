@@ -38,22 +38,38 @@ license, see accompanied LICENSE.md.
 
 START_TEST (test_uri)
 {
-    s3d_uriinfo *result = NULL;
+    s3duri *result = NULL;
     {
         result = s3d_uri_ParseURIOrPath(
             "file://abc?def#c", "https"
         );
-        assert(strcmp(result->protocol, "file") == 0);
-        assert(strcmp(result->resource, "abc?def") == 0);
-        free(result);
+        ck_assert(result != NULL);
+        ck_assert_str_eq(result->protocol, "file");
+        ck_assert(result->resource != NULL);
+        ck_assert_str_eq(result->resource, "abc?def");
+        s3d_uri_Free(result);
     }
     {
         result = s3d_uri_ParseURIOrPath(
             "http://abc?def#c", "https"
         );
-        assert(strcmp(result->protocol, "http") == 0);
-        assert(strcmp(result->resource, "abc") == 0);
-        free(result);
+        ck_assert(result->protocol != NULL);
+        ck_assert_str_eq(result->protocol, "http");
+        ck_assert(result->resource != NULL);
+        ck_assert_str_eq(result->resource, "/");
+        ck_assert(result->host != NULL);
+        ck_assert_str_eq(result->host, "abc");
+        s3d_uri_Free(result);
+    }
+    {
+        result = s3d_uri_ParseURIOrPath(
+            "test/LICENSE.md", "https"
+        );
+        ck_assert(result->protocol != NULL);
+        ck_assert_str_eq(result->protocol, "file");
+        ck_assert(result->resource != NULL);
+        ck_assert_str_eq(result->resource, "test/LICENSE.md");
+        s3d_uri_Free(result);
     }
 }
 END_TEST

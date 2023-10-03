@@ -118,7 +118,7 @@ static int _path_is_typical_unix_abs_path(const char *path) {
 }
 
 static int _uri_set_resource_from_uri_encoded_str(
-        s3d_uriinfo *result, const char *known_protocol,
+        s3duri *result, const char *known_protocol,
         const char *encodedpath, int allow_windows_separator
         ) {
     int querystringstart = 0;
@@ -171,7 +171,7 @@ static int _uri_set_resource_from_uri_encoded_str(
     return 1;
 }
 
-S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
+S3DHID s3duri *_internal_s3d_uri_ParseEx(
         const char *uristr,
         const char *default_remote_protocol,
         const char *default_relative_path_protocol,
@@ -184,7 +184,7 @@ S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
         return NULL;  // This will otherwise break things.
     int allow_windows_separator = !disable_windows_separator;
 
-    s3d_uriinfo *result = malloc(sizeof(*result));
+    s3duri *result = malloc(sizeof(*result));
     if (!result)
         return NULL;
     memset(result, 0, sizeof(*result));
@@ -285,7 +285,8 @@ S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
                 *part != '@' && *part != '*' && *part != '&' &&
                 *part != '%' && *part != '#' && *part != '$' &&
                 *part != '!' && *part != '"' && *part != '\'' &&
-                *part != '(' && *part != ')' && *part != '|') {
+                *part != '(' && *part != ')' && *part != '|' &&
+                *part != '?') {
             if (*part == '.')
                 lastdotindex = (part - part_start);
             part++;
@@ -333,7 +334,8 @@ S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
         free(portbuf);
         part_start = part;
         lastdotindex = -1;
-    } else if ((*part == '/' || *part == '\0') &&
+    } else if ((*part == '/' || *part == '\0' ||
+            *part == '#' || *part == '?') &&
             result->protocol &&
             strcasecmp(result->protocol, "file") != 0) {
         // We've had a protocol in front, so first slash ends host:
@@ -406,14 +408,14 @@ S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
     return result;
 }
 
-S3DEXP s3d_uriinfo *s3d_uri_ParseURIOrPath(
+S3DEXP s3duri *s3d_uri_ParseURIOrPath(
         const char *uri,
         const char *default_remote_protocol
         ) {
     return _internal_s3d_uri_ParseEx(uri, "https", "file", 0, 0);
 }
 
-S3DEXP s3d_uriinfo *s3d_uri_ParseURI(
+S3DEXP s3duri *s3d_uri_ParseURI(
         const char *uri,
         const char *default_remote_protocol
         ) {
@@ -467,26 +469,26 @@ S3DEXP char *s3d_uri_PercentEncodeResourceEx(
 }
 
 S3DEXP char *s3d_uri_ToStrEx(
-    s3d_uriinfo *uinfo,
+    s3duri *uinfo,
     int ensure_absolute_file_paths
 );
 
 S3DEXP char *s3d_uri_Normalize(
         const char *uristr,
         int absolutefilepaths) {
-    s3d_uriinfo *uinfo = s3d_uri_ParseURIOrPath(uristr, "https");
+    s3duri *uinfo = s3d_uri_ParseURIOrPath(uristr, "https");
     if (!uinfo) {
         return NULL;
     }
     return s3d_uri_ToStrEx(uinfo, absolutefilepaths);
 }
 
-S3DEXP char *s3d_uri_ToStr(s3d_uriinfo *uinfo) {
+S3DEXP char *s3d_uri_ToStr(s3duri *uinfo) {
     return s3d_uri_ToStrEx(uinfo, 0);
 }
 
 S3DEXP char *s3d_uri_ToStrEx(
-        s3d_uriinfo *uinfo,
+        s3duri *uinfo,
         int ensure_absolute_file_paths) {
     char portbuf[128] = "";
     if (uinfo->port > 0) {
@@ -575,22 +577,19 @@ S3DEXP char *s3d_uri_ToStrEx(
     return shrunkbuf;
 }
 
-S3DEXP void s3d_uri_Free(s3d_uriinfo *uri) {
+S3DEXP void s3d_uri_Free(s3duri *uri) {
     if (!uri)
         return;
-    if (uri->protocol)
-        free(uri->protocol);
-    if (uri->host)
-        free(uri->host);
-    if (uri->resource)
-        free(uri->resource);
-    if (uri->querystring)
-        free(uri->querystring);
+    free(uri->protocol);
+    free(uri->host);
+    free(uri->resource);
+    free(uri->anchor);
+    free(uri->querystring);
     free(uri);
 }
 
 S3DEXP int s3d_uri_HasFileExtension(
-        s3d_uriinfo *uri, const char *extension
+        s3duri *uri, const char *extension
         ) {
     int i = strlen(uri->resource) - 1;
     while (i >= 0 && uri->resource[i] != '.') {
@@ -607,7 +606,7 @@ S3DEXP int s3d_uri_HasFileExtension(
 }
 
 S3DEXP int s3d_uri_SetFileExtension(
-        s3d_uriinfo *uri, const char *new_extension
+        s3duri *uri, const char *new_extension
         ) {
     int i = strlen(uri->resource) - 1;
     while (i >= 0 && uri->resource[i] != '.') {

@@ -47,7 +47,7 @@ char *our_little_uri_transform_helper(
     if (!replace_ext_new)
         return strdup(uristr);
 
-    s3d_uriinfo *uri = s3d_uri_ParseURI(uristr, "https");
+    s3duri *uri = s3d_uri_ParseURI(uristr, "https");
     if (!uri)
         return NULL;
 

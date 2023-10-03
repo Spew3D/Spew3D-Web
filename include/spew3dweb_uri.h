@@ -35,13 +35,13 @@ license, see accompanied LICENSE.md.
 /// A struct representing the parsed elements of an URI resource.
 /// Please that the port can be -1 if not specified, and the
 /// querystring can be NULL if not specified.
-typedef struct s3d_uriinfo {
+typedef struct s3duri {
     char *protocol;
     char *host;
     int port;
     char *resource;
     char *querystring, *anchor;
-} s3d_uriinfo;
+} s3duri;
 
 /// This function parses a string that is known to somehow refer
 /// to a resource, but where it might be both a local disk file path
@@ -63,7 +63,7 @@ typedef struct s3d_uriinfo {
 /// @returns The parsed result, or NULL on allocation failure.
 ///   The parser always guesses something, so there's no parse failure
 ///   other than out of memory.
-s3d_uriinfo *s3d_uri_ParseURIOrPath(
+s3duri *s3d_uri_ParseURIOrPath(
     const char *uri_or_file_str,
     const char *default_remote_protocol
 );
@@ -82,12 +82,12 @@ s3d_uriinfo *s3d_uri_ParseURIOrPath(
 /// @returns The parsed result, or NULL on allocation failure.
 ///   The parser always guesses something, so there's no parse failure
 ///   other than out of memory.
-s3d_uriinfo *s3d_uri_ParseURI(
+s3duri *s3d_uri_ParseURI(
     const char *uristr,
     const char *default_remote_protocol
 );
 
-S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
+S3DHID s3duri *_internal_s3d_uri_ParseEx(
     const char *uristr,
     const char *default_remote_protocol,
     const char *default_relative_path_protocol,
@@ -103,9 +103,9 @@ S3DHID s3d_uriinfo *_internal_s3d_uri_ParseEx(
 /// @returns The normalized URI string, or NULL if out of memory.
 char *s3d_uri_Normalize(const char *uristr, int absolutefilepaths);
 
-/// Destroy the given `s3d_uriinfo` struct, freeing memory of all
+/// Destroy the given `s3duri` struct, freeing memory of all
 /// members.
-void s3d_uri_Free(s3d_uriinfo *uri);
+void s3d_uri_Free(s3duri *uri);
 
 /// Return an URI percent encoded string from the given unencoded
 /// resource string.
@@ -125,7 +125,7 @@ S3DEXP char *s3d_uri_PercentEncodeResourceEx(
     const char *path, int donttouchbefore
 );
 
-/// Convert an `s3d_uriinfo` struct back into an URI string.
+/// Convert an `s3duri` struct back into an URI string.
 ///
 /// @param uinfo The struct to be converted back to a string.
 /// @param ensure_absolute_file_paths If the URI string represents
@@ -133,18 +133,18 @@ S3DEXP char *s3d_uri_PercentEncodeResourceEx(
 ///     path given the working directory.
 /// @returns The resulting string, or NULL if out of memory.
 S3DEXP char *s3d_uri_ToStrEx(
-    s3d_uriinfo *uinfo,
+    s3duri *uinfo,
     int ensure_absolute_file_paths
 );
 
 /// This function works like `s3d_uri_ToStrEx`, but it will leave
 /// relative file paths alone.
-S3DEXP char *s3d_uri_ToStr(s3d_uriinfo *uri);
+S3DEXP char *s3d_uri_ToStr(s3duri *uri);
 
 /// Check if the URI's resource has the given file extension or not.
 /// @returns 1 if the extension matches, 0 if not.
 S3DEXP int s3d_uri_HasFileExtension(
-    s3d_uriinfo *uri, const char *extension
+    s3duri *uri, const char *extension
 );
 
 /// Set the URI's resource to have the given file extension.
@@ -153,7 +153,7 @@ S3DEXP int s3d_uri_HasFileExtension(
 /// @returns 0 on out of memory which will leave the URI unchanged,
 ///   otherwise 1.
 S3DEXP int s3d_uri_SetFileExtension(
-    s3d_uriinfo *uri, const char *new_extension
+    s3duri *uri, const char *new_extension
 );
 
 #endif  // SPEW3DWEB_URI_H_
