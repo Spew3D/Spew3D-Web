@@ -47,8 +47,8 @@ char *our_little_uri_transform_helper(
     if (!replace_ext_new)
         return strdup(uristr);
 
-    s3d_uriinfo *uri = s3d_uri_ParseAny(uristr, "https");
-    if (!uristr)
+    s3d_uriinfo *uri = s3d_uri_ParseURI(uristr, "https");
+    if (!uri)
         return NULL;
 
     if (replace_ext_old &&
@@ -68,8 +68,6 @@ char *our_little_uri_transform_helper(
 
 int main(int argc, const char **argv) {
     const char *filepath = NULL;
-    const char *replace_ext_old = NULL;
-    const char *replace_ext_new = NULL;
     int i = 1;
     while (i < argc) {
         if (strcmp(argv[i], "--") == 0) {
@@ -115,14 +113,15 @@ int main(int argc, const char **argv) {
         size_t chunklen = 0;
         char *chunk = spew3dweb_markdown_GetIChunkFromDiskFile(
             f, 10 * 1024,
-            our_little_uri_transform_helper, NULL,
             &chunklen
         );
         if (chunk && chunklen == 0) {  // End of file.
             free(chunk);
             break;
         }
-        char *html = (chunk ? spew3dweb_markdown_ToHTML(chunk) : NULL);
+        char *html = (chunk ? spew3dweb_markdown_ToHTMLEx(
+            chunk, 1, our_little_uri_transform_helper, NULL,
+            NULL) : NULL);
         if (!chunk || !html) {
             free(chunk);
             free(html);

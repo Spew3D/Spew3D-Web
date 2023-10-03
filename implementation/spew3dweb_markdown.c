@@ -44,10 +44,6 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         void *userdata,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     assert(opt_minchunklen > 0);
@@ -344,10 +340,6 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
         const char *original_buffer, size_t original_buffer_len,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
@@ -362,7 +354,6 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkExFromMem(
             _internal_helper_markdown_getchunk_seekback,
             &i, optionalbuf, optionalbufsize,
             opt_maxchunklen, opt_minchunklen,
-            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
@@ -375,17 +366,12 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromCustomIO(
         int (*seekback_func)(size_t backward_amount, void *userdata),
         void *userdata,
         size_t opt_maxchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     return _internal_spew3dweb_markdown_GetIChunkFromCustomIOEx(
         read_func, checkeof_func, seekback_func, userdata,
         NULL, 0,
         opt_maxchunklen, 1024 * 5,
-        opt_uritransformcallback, opt_uritransform_userdata,
         out_len
     );
 }
@@ -394,10 +380,6 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
         SPEW3DVFS_FILE *f,
         char *optionalbuf, size_t optionalbufsize,
         size_t opt_maxchunklen, size_t opt_minchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
@@ -411,7 +393,6 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
             _internal_helper_markdown_getchunk_seekback,
             &i, optionalbuf, optionalbufsize,
             opt_maxchunklen, opt_minchunklen,
-            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
@@ -420,26 +401,17 @@ S3DHID char *_internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromVFSFile(
         SPEW3DVFS_FILE *f, size_t opt_maxchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     return _internal_spew3dweb_markdown_GetIChunkFromVFSFileEx(
         f, NULL, 0,
         opt_maxchunklen, 1024 * 5,
-        opt_uritransformcallback, opt_uritransform_userdata,
         out_len
     );
 }
 
 S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
         FILE *f, size_t opt_maxchunklen,
-        char *(*opt_uritransformcallback)(
-            const char *uri, void *userdata
-        ),
-        void *opt_uritransform_userdata,
         size_t *out_len
         ) {
     struct _internal_helper_markdown_getchunk_readerinfo i;
@@ -453,7 +425,6 @@ S3DEXP char *spew3dweb_markdown_GetIChunkFromDiskFile(
             _internal_helper_markdown_getchunk_seekback,
             &i, NULL, 0,
             opt_maxchunklen, 1024 * 5,
-            opt_uritransformcallback, opt_uritransform_userdata,
             out_len
         )
     );
