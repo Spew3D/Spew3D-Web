@@ -317,6 +317,9 @@ START_TEST(test_is_url_and_is_image)
     assert(spew3dweb_markdown_IsStrImage(
         "![abc](abc def)"
     ));
+    assert(spew3dweb_markdown_IsStrImage(
+        "![abc](abc def){width=30% height=20px}"
+    ));
     assert(spew3dweb_markdown_IsStrUrl(
         "[abc](\nabc def)"
     ));

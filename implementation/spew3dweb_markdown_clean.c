@@ -1721,6 +1721,111 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
     assert(url_pastend >= url_start);
     i += 1;
 
+    int potentialwidth = 0;
+    char potentialwidthformat = '\0';
+    int potentialheight = 0;
+    char potentialheightformat = '\0';
+    {
+        int i2 = i;
+        while (i2 < inputlen && (
+                input[i2] == ' ' || input[i2] == '\t'))
+            i2 += 1;
+        if (i2 < inputlen && input[i2] == '{') {
+            i2 += 1;
+            while (i2 < inputlen && input[i2] != '}') {
+                while (i2 < inputlen && (
+                        input[i2] == ' ' || input[i2] == '\t'))
+                    i2 += 1;
+                const char *attributes[] = {
+                    "width", "height", NULL
+                };
+                int invalid_attribute = 0;
+                int found_attribute = 0;
+                int k = 0;
+                while (attributes[k] != NULL) {
+                    const char *attr = attributes[k];
+                    if (i2 + strlen(attr) <= inputlen &&
+                            memcmp(input + i2, attr, strlen(attr)) ==
+                            0) {
+                        i2 += strlen(attr);
+                        if (i2 >= inputlen || input[i2] != '=') {
+                            invalid_attribute = 1;
+                            break;
+                        }
+                        i2 += 1;
+                        char valueformat = '\0';
+                        char valuebuf[9] = "";
+                        while (i2 < inputlen && (
+                                (input[i2] >= '0' &&
+                                 input[i2] <= '9'))) {
+                            if (strlen(valuebuf) + 1 <
+                                    sizeof(valuebuf)) {
+                                valuebuf[strlen(valuebuf) + 1] = '\0';
+                                valuebuf[strlen(valuebuf)] = input[i2];
+                            }
+                            i2 += 1;
+                        }
+                        if (i2 >= inputlen || strlen(valuebuf) < 1) {
+                            invalid_attribute = 1;
+                            break;
+                        }
+                        if (i2 + 1 < inputlen &&
+                                (input[i2] == 'p' &&
+                                 input[i2 + 1] == 'x')) {
+                            valueformat = 'p';
+                            i2 += 2;
+                        } else if (input[i2] == '%') {
+                            valueformat = '%';
+                            i2 += 1;
+                        } else if (input[i2] == ' ' ||
+                                input[i2] == '\t' ||
+                                input[i2] == '}') {
+                            valueformat = 'p';
+                        } else {
+                            invalid_attribute = 1;
+                            break;
+                        }
+                        if (i2 >= inputlen ||
+                                (input[i2] != '}' &&
+                                 input[i2] != ' ' &&
+                                 input[i2] != '\t')) {
+                            invalid_attribute = 1;
+                            break;
+                        }
+                        if (strcmp(attr, "width") == 0) {
+                            potentialwidth = atoi(valuebuf);
+                            potentialwidthformat = valueformat;
+                        } else if (strcmp(attr, "height") == 0) {
+                            potentialheight = atoi(valuebuf);
+                            potentialheightformat = valueformat;
+                        }
+                        while (i2 < inputlen &&
+                                (input[i2] == ' ' ||
+                                 input[i2] == '\t'))
+                            i2 += 1;
+                        found_attribute = 1;
+                        break;
+                    }
+                    k += 1;
+                }
+                if (invalid_attribute || !found_attribute) {
+                    i2 = i;
+                    break;
+                }
+            }
+            if (i2 < inputlen && input[i2] == '}') {
+                // Looks all valid. Apply result:
+                i = i2 + 1;
+            } else {
+                // Wipe it again.
+                potentialwidth = 0;
+                potentialwidthformat = '\0';
+                potentialheight = 0;
+                potentialheightformat = '\0';
+            }
+        }
+    }
+
     if (out_title_start != NULL)
         *out_title_start = title_start;
     if (out_title_len != NULL)
@@ -1734,9 +1839,13 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
             prefix_url_linebreak_to_keep_formatting
         );
     if (out_img_width != NULL)
-        *out_img_width = -1; //img_width;
+        *out_img_width = potentialwidth;
+    if (out_img_width_format)
+        *out_img_width_format = potentialwidthformat;
     if (out_img_height != NULL)
-        *out_img_height = -1; //img_height;
+        *out_img_height = potentialheight;
+    if (out_img_height_format)
+        *out_img_height_format = potentialheightformat;
 
     return (i - offset);
 }

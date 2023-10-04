@@ -593,6 +593,45 @@ static int _spew3d_markdown_process_inline_content(
                     if (isimage) {
                         if (!INS("<img"))
                             goto errorquit;
+                        char numbuf[16];
+                        if (imgwidthformat != '\0') {
+                            if (!INS(" width='"))
+                                goto errorquit;
+                            snprintf(numbuf, sizeof(numbuf) - 1,
+                                "%d", imgwidth);
+                            if (!INS(numbuf))
+                                goto errorquit;
+                            if (imgwidthformat == '%') {
+                                if (!INSC('%'))
+                                    goto errorquit;
+                            } else if (imgwidthformat == 'p') {
+                                if (!INS("px"))
+                                    goto errorquit;
+                            } else {
+                                assert(0);  // Shouldn't be possible.
+                            }
+                            if (!INS("'"))
+                                goto errorquit;
+                        }
+                        if (imgheightformat != '\0') {
+                            if (!INS(" height='"))
+                                goto errorquit;
+                            snprintf(numbuf, sizeof(numbuf) - 1,
+                                "%d", imgheight);
+                            if (!INS(numbuf))
+                                goto errorquit;
+                            if (imgheightformat == '%') {
+                                if (!INSC('%'))
+                                    goto errorquit;
+                            } else if (imgheightformat == 'p') {
+                                if (!INS("px"))
+                                    goto errorquit;
+                            } else {
+                                assert(0);  // Shouldn't be possible.
+                            }
+                            if (!INS("'"))
+                                goto errorquit;
+                        }
                         if (!INS(" src='"))
                             goto errorquit;
                     }
