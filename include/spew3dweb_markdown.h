@@ -183,7 +183,8 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
     int *out_title_start, int *out_title_len,
     int *out_url_start, int *out_url_len,
     int *out_prefix_url_linebreak_to_maintain_formatting,
-    int *out_img_width, int *out_img_height
+    int *out_img_width, char *out_img_width_format,
+    int *out_img_height, char *out_img_height_format
 );
 
 S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(

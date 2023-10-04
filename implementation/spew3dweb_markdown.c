@@ -205,7 +205,8 @@ static int _m2html_check_line_has_link(
             size_t linklen = (
                 _internal_spew3dweb_markdown_GetLinkOrImgLen(
                     lineinfo[linei].linestart, len, i, 1,
-                    NULL, NULL, NULL, NULL, NULL, NULL, NULL
+                    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                    NULL, NULL
                 ));
             if (linklen > 0)
                 return 1;
@@ -390,7 +391,7 @@ static int _spew3d_markdown_process_inline_content(
                                     linebuf2 + i2,
                                     i2pastend - i2, 0, 1,
                                     NULL, NULL, NULL, NULL,
-                                    NULL, NULL, NULL
+                                    NULL, NULL, NULL, NULL, NULL
                                 ));
                             if (linklen > 0) {
                                 i2 += linklen;
@@ -567,13 +568,15 @@ static int _spew3d_markdown_process_inline_content(
                 int url_start, url_len;
                 int prefix_url_linebreak_to_keep_formatting = 0;
                 int imgwidth, imgheight;
+                char imgwidthformat, imgheightformat;
                 size_t linklen = (
                     _internal_spew3dweb_markdown_GetLinkOrImgLen(
                         linebuf, ipastend, i, 1,
                         &title_start, &title_len,
                         &url_start, &url_len,
                         &prefix_url_linebreak_to_keep_formatting,
-                        &imgwidth, &imgheight
+                        &imgwidth, &imgwidthformat,
+                        &imgheight, &imgheightformat
                     ));
                 if (linklen <= 0 || (!isimage &&
                         title_len == 0)) {
@@ -587,9 +590,12 @@ static int _spew3d_markdown_process_inline_content(
                     i += 1;
                     continue;
                 } else {
-                    if (isimage)
-                        if (!INS("<img src='"))
+                    if (isimage) {
+                        if (!INS("<img"))
                             goto errorquit;
+                        if (!INS(" src='"))
+                            goto errorquit;
+                    }
                     if (!isimage)
                         if (!INS("<a href='"))
                             goto errorquit;

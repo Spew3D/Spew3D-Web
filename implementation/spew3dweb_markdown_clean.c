@@ -952,7 +952,7 @@ S3DEXP int spew3dweb_markdown_IsStrUrl(const char *test_str) {
         return 0;
     int len = _internal_spew3dweb_markdown_GetLinkOrImgLen(
         test_str, test_str_len, 0, 0,
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
     return (len == test_str_len);
 }
@@ -963,7 +963,7 @@ S3DEXP int spew3dweb_markdown_IsStrImage(const char *test_str) {
         return 0;
     int len = _internal_spew3dweb_markdown_GetLinkOrImgLen(
         test_str, test_str_len, 0, 0,
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
     );
     return (len == test_str_len);
 }
@@ -1299,12 +1299,14 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             int url_start, url_len;
             int prefix_url_linebreak_to_keep_formatting = 0;
             int imgwidth, imgheight;
+            char imgwidthformat, imgheightformat;
             int linklen = _internal_spew3dweb_markdown_GetLinkOrImgLen(
                 input, inputlen, i, opt_forcelinksoneline,
                 &title_start, &title_len,
                 &url_start, &url_len,
                 &prefix_url_linebreak_to_keep_formatting,
-                &imgwidth, &imgheight
+                &imgwidth, &imgwidthformat, &imgheight,
+                &imgheightformat
             );
             if (linklen <= 0) {  // oops, not a link/image:
                 if (maybeimage) {
@@ -1643,7 +1645,8 @@ S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(
         int *out_title_start, int *out_title_len,
         int *out_url_start, int *out_url_len,
         int *out_prefix_url_linebreak_to_keep_formatting,
-        int *out_img_width, int *out_img_height
+        int *out_img_width, char *out_img_width_format,
+        int *out_img_height, char *out_img_height_format
         ) {
     int title_start, title_pastend,
         url_start, url_pastend;
