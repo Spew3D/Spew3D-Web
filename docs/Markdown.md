@@ -69,16 +69,17 @@ dialect or variant, translated to HTML:
   corner-case handling](#parser-design-philosophy), and
   with additional support for:
 
-- Basic **markdown tables** as done by GitLab or GitHub markdown:
+- Basic **markdown tables** (e.g. seen in GitLab or GitHub markdown):
 
       |Column 1      |Column 2      |
       |--------------|--------------|
       |Row 1 cell 1  |Row 1 cell 2  |
       |Row 2 cell 1  |Row 1 cell 2  |
 
-- Extra syntax for **image dimensions**, useful for High-DPI images:
+- Extra syntax for **image dimensions**, useful for High-DPI images
+  (e.g. seen in GitLab markdown):
 
-      ![Descriptive text](image.png){width=100 height=100px}
+      ![Descriptive text](image.png){width=50% height=100px}
 
 - Option to disable unsafe HTML for untrusted sources.
 
