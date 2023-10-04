@@ -624,8 +624,8 @@ S3DEXP int s3d_uri_HasFileExtensionEx(
     int urilen = 0;
     if (!treat_as_local_disk_path) {
         while (urilen < strlen(uri) &&
-                (uri[urilen - 1] != '?' &&
-                uri[urilen - 1] != '#'))
+                (uri[urilen] != '?' &&
+                uri[urilen] != '#'))
             urilen++;
     } else {
         urilen = strlen(uri);
@@ -712,8 +712,8 @@ S3DEXP char *s3d_uri_SetFileExtensionEx(
     int urilen = 0;
     if (!treat_as_local_disk_path) {
         while (urilen < strlen(uri) &&
-                (uri[urilen - 1] != '?' &&
-                uri[urilen - 1] != '#'))
+                (uri[urilen] != '?' &&
+                uri[urilen] != '#'))
             urilen++;
     } else {
         urilen = strlen(uri);

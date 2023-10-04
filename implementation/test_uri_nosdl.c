@@ -97,8 +97,9 @@ END_TEST
 
 START_TEST (test_uri_fromfilepath)
 {
+    s3duri *result;
     {
-        s3duri *result = s3d_uri_FromFilePath(
+        result = s3d_uri_FromFilePath(
             "LICENSE%20.md"
         );
         ck_assert_str_eq(result->protocol, "file");
@@ -109,5 +110,18 @@ START_TEST (test_uri_fromfilepath)
 }
 END_TEST
 
-TESTS_MAIN(test_uri_parse, test_uri_fromfilepath)
+START_TEST (test_uri_fileextension)
+{
+    char *result;
+    {
+        result = s3d_uri_SetFileExtension(
+            "abcaiocj/aeiroeajo#bla", ".md"
+        );
+        ck_assert_str_eq(result, "abcaiocj/aeiroeajo.md#bla");
+    }
+}
+END_TEST
+
+TESTS_MAIN(test_uri_parse, test_uri_fromfilepath,
+    test_uri_fileextension)
 

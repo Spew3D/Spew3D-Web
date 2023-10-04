@@ -170,8 +170,12 @@ S3DEXP char *s3d_uri_ToStrEx(
 S3DEXP char *s3d_uri_ToStr(s3duri *uri);
 
 /// Check if the URI's resource has the given file extension or not.
+///
+/// **Important regarding local file paths:**
 /// Please note before using this on file paths, you should convert
-/// them to `file://` URIs first.
+/// them to `file://` URIs first (because characters like `#`
+/// which are valid in file names on some systems will be treated
+/// as remote URI items like anchors!).
 /// @returns 1 if the extension matches, 0 if not.
 S3DEXP int s3d_uri_HasFileExtension(
     const char *uri, const char *extension
@@ -179,8 +183,13 @@ S3DEXP int s3d_uri_HasFileExtension(
 
 /// Set the URI's resource to have the given file extension.
 /// If it had a previous file extension that one will be truncated
-/// first. Please note before using this on file paths, you should
-/// convert them to `file://` URIs first.
+/// first.
+///
+/// **Important regarding local file paths:**
+/// Please note before using this on file paths, you should
+/// convert them to `file://` URIs first (because characters like `#`
+/// which are valid in file names on some systems will be treated
+/// as remote URI items like anchors!).
 /// @returns 0 on out of memory which will leave the URI unchanged,
 ///   otherwise 1.
 S3DEXP char *s3d_uri_SetFileExtension(

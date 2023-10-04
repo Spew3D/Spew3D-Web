@@ -526,7 +526,7 @@ START_TEST(test_markdown_tohtml)
         assert(_s3dw_check_html_same(result,
             "<table><tr><th>a</th><th>b</th></tr>"
             "<tr><td><strong>thick</strong></td><td>"
-            "<img src='lol.png'/></td><tr></table>"));
+            "<img src='lol.png'/></td></tr></table>"));
         free(result);
     }
 }
