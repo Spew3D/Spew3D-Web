@@ -745,7 +745,7 @@ S3DEXP char *s3d_uri_SetFileExtensionEx(
     memcpy(write, new_extension, strlen(new_extension));
     write += strlen(new_extension);
     if (traillen > 0) {
-        memcpy(write, uri + i, traillen);
+        memcpy(write, uri + strlen(uri) - traillen, traillen);
         write += traillen;
     }
     *write = '\0';

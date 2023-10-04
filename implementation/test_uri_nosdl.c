@@ -118,6 +118,14 @@ START_TEST (test_uri_fileextension)
             "abcaiocj/aeiroeajo#bla", ".md"
         );
         ck_assert_str_eq(result, "abcaiocj/aeiroeajo.md#bla");
+        free(result);
+    }
+    {
+        result = s3d_uri_SetFileExtension(
+            "/docs/Resources.md#report-bugs", ""
+        );
+        ck_assert_str_eq(result, "/docs/Resources#report-bugs");
+        free(result);
     }
 }
 END_TEST
