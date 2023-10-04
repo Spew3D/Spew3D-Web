@@ -1469,6 +1469,51 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             if (uribufonheap) free(uribuf);
             if (!INS(")"))
                 goto errorquit;
+            if (imgwidthformat != '\0' ||
+                    imgheightformat != '\0') {
+                if (!INS("{"))
+                    goto errorquit;
+                char numbuf[8];
+                if (imgwidthformat != '\0') {
+                    snprintf(numbuf, sizeof(numbuf) - 1,
+                        "%d", imgwidth);
+                    if (!INS("width="))
+                        goto errorquit;
+                    if (!INS(numbuf))
+                        goto errorquit;
+                    if (imgwidthformat == '%') {
+                        if (!INS("%"))
+                            goto errorquit;
+                    } else if (imgwidthformat == 'p') {
+                        if (!INS("px"))
+                            goto errorquit;
+                    } else {
+                        assert(0);
+                    }
+                }
+                if (imgheightformat != '\0') {
+                    if (imgwidthformat != '\0')
+                        if (!INS(" "))
+                            goto errorquit;
+                    snprintf(numbuf, sizeof(numbuf) - 1,
+                        "%d", imgheight);
+                    if (!INS("height="))
+                        goto errorquit;
+                    if (!INS(numbuf))
+                        goto errorquit;
+                    if (imgheightformat == '%') {
+                        if (!INS("%"))
+                            goto errorquit;
+                    } else if (imgheightformat == 'p') {
+                        if (!INS("px"))
+                            goto errorquit;
+                    } else {
+                        assert(0);
+                    }
+                }
+                if (!INS("}"))
+                    goto errorquit;
+            }
             i += linklen;
             continue;
         }
