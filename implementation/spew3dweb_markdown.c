@@ -245,7 +245,7 @@ static int _spew3d_markdown_process_inline_content(
         size_t *resultallocptr,
         _markdown_lineinfo *lineinfo, size_t lineinfofill,
         int startline, int endbeforeline,
-        int start_at_content_index,
+        int start_at_content_index, int end_at_content_index,
         int as_code, int isinheading,
         s3dw_markdown_tohtmloptions *options,
         int *out_endlineidx
@@ -260,6 +260,8 @@ static int _spew3d_markdown_process_inline_content(
             isinheading)
         endbeforeline = endline + 1;
 
+    assert(end_at_content_index < 0 ||
+        endbeforeline <= startline + 1);
     size_t inside_linktitle_ends_at = 0;
     int inside_linktitle_minimum_fnesting = 0;
     size_t past_link_idx = 0;
@@ -312,6 +314,8 @@ static int _spew3d_markdown_process_inline_content(
         size_t ipastend = (
             lineinfo[iline].indentedcontentlen +
             lineinfo[iline].indentlen);
+        if (end_at_content_index >= 0)
+            ipastend = end_at_content_index;
         const char *linebuf = lineinfo[iline].linestart;
         while (i < ipastend) {
             if (inside_linktitle_ends_at > 0 &&
@@ -931,6 +935,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 nestingsdepth -= 1;
             }
         }
+        int potentialtablecells = 0;
         if (insidecodeindent < 0 && i < lineinfofill) {
             // Check for everything allowed outside of a code block:
             int _numentrylen = -1;
@@ -1019,7 +1024,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         int endlineidx = -1;
                         if (!_spew3d_markdown_process_inline_content(
                                 &resultchunk, &resultfill, &resultalloc,
-                                lineinfo, lineinfofill, i, i, 0,
+                                lineinfo, lineinfofill, i, i, 0, -1,
                                 1, 0, options,
                                 &endlineidx))
                             goto errorquit;
@@ -1169,7 +1174,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         if (!_spew3d_markdown_process_inline_content(
                                 &resultchunk, &resultfill, &resultalloc,
                                 lineinfo, lineinfofill, i, i + 1,
-                                i2, 0, 1, options, &endlineidx))
+                                i2, -1, 0, 1, options, &endlineidx))
                             goto errorquit;
                         if (doanchor) {
                             if (!INS("</a>"))
@@ -1186,6 +1191,69 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         continue;
                     }
                 }
+            } else if (_internal_s3dw_markdown_LineStartsTable(
+                    lineinfo, i, lineinfofill,
+                    &potentialtablecells
+                    )) {
+                const int cellcount = potentialtablecells;
+                assert(i + 1 < lineinfofill);
+                assert(cellcount > 0);
+                if (!INS("<table>"))
+                    goto errorquit;
+                int firstrowidx = i;
+                int mustskipidx = i + 1;
+                while (i < lineinfofill && (
+                        i <= mustskipidx ||
+                        _internal_s3dw_markdown_LineContinuesTable(
+                        lineinfo, i, lineinfofill, cellcount))) {
+                    if (i == mustskipidx) {
+                        i += 1;
+                        continue;
+                    }
+                    if (!INS("\n<tr>"))
+                        goto errorquit;
+                    int cellidx = 0;
+                    while (cellidx < cellcount) {
+                        int cell_start, cell_len;
+                        _internal_s3dw_markdown_GetTableCell(
+                            lineinfo, i, lineinfofill, cellidx + 1,
+                            &cell_start, &cell_len
+                        );
+                        if (i == firstrowidx) {
+                            if (!INS("<th>"))
+                                goto errorquit;
+                        } else {
+                            if (!INS("<td>"))
+                                goto errorquit;
+                        }
+                        if (cell_len == 0) {
+                            cellidx += 1;
+                            continue;
+                        }
+                        int endlineidx;
+                        if (!_spew3d_markdown_process_inline_content(
+                                &resultchunk, &resultfill, &resultalloc,
+                                lineinfo, lineinfofill, i, i,
+                                cell_start, cell_start + cell_len,
+                                0, 1, options, &endlineidx))
+                            goto errorquit;
+                        assert(endlineidx == i);
+                        if (i == firstrowidx) {
+                            if (!INS("</th>"))
+                                goto errorquit;
+                        } else {
+                            if (!INS("</td>"))
+                                goto errorquit;
+                        }
+                        cellidx += 1;
+                    }
+                    if (!INS("</tr>"))
+                        goto errorquit;
+                    i += 1;
+                }
+                if (!INS("\n</table>\n"))
+                    goto errorquit;
+                continue;
             }
         }
         if (insidecodeindent >= 0) {
@@ -1201,7 +1269,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             int endlineidx = -1;
             if (!_spew3d_markdown_process_inline_content(
                     &resultchunk, &resultfill, &resultalloc,
-                    lineinfo, lineinfofill, i, i + 1, 0,
+                    lineinfo, lineinfofill, i, i + 1, 0, -1,
                     1 /* as code, no formatting */,
                     0, options, &endlineidx))
                 goto errorquit;
@@ -1263,7 +1331,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             int endlineidx = -1;
             if (!_spew3d_markdown_process_inline_content(
                     &resultchunk, &resultfill, &resultalloc,
-                    lineinfo, lineinfofill, i, lineinfofill, 0,
+                    lineinfo, lineinfofill, i, lineinfofill,
+                    0, -1,
                     0, (headingtype != 0), options,
                     &endlineidx))
                 goto errorquit;

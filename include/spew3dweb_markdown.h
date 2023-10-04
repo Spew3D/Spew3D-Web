@@ -203,6 +203,24 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
     void *opt_uritransform_userdata
 );
 
+typedef struct _markdown_lineinfo _markdown_lineinfo;
+
+S3DHID int _internal_s3dw_markdown_LineStartsTable(
+    _markdown_lineinfo *lineinfo, size_t linei,
+    size_t linefill, int *out_cells
+);
+
+S3DHID int _internal_s3dw_markdown_LineContinuesTable(
+    _markdown_lineinfo *lineinfo, size_t linei,
+    size_t linefill, int cells
+);
+
+S3DHID void _internal_s3dw_markdown_GetTableCell(
+    _markdown_lineinfo *lineinfo, size_t linei,
+    size_t linefill, int cell_no,
+    int *out_startoffset, int *out_byteslen
+);
+
 S3DHID int _internal_s3dw_markdown_ensurebufsize(
     char **bufptr, size_t *bufalloc, size_t new_size
 );

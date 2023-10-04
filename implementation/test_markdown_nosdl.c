@@ -518,6 +518,17 @@ START_TEST(test_markdown_tohtml)
             "<p>abc</p><pre><code>def\n</code></pre>"));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "|a|b|\n|--|----|\n|**thick**|![](lol.png)|"
+        );
+        printf("test_markdown_tohtml result #12: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<table><tr><th>a</th><th>b</th></tr>"
+            "<tr><td><strong>thick</strong></td><td>"
+            "<img src='lol.png'/></td><tr></table>"));
+        free(result);
+    }
 }
 END_TEST
 
