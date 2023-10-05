@@ -23,8 +23,8 @@ may include guidance and basic functionality, as well as
 the ['examples' folder](./examples/).
 
 
-Compiling / Usage
------------------
+Compiling and usage
+-------------------
 
 *(Get `spew3d.h` [from here](https://codeberg.org/Spew3D/Spew3D/releases),
 and `spew3dweb.h`
@@ -55,7 +55,7 @@ the [Spew3D option to not use SDL](
 https://codeberg.org/Spew3D/Spew3D#options).
 
 
-Run Tests
+Run tests
 ---------
 
 Currently, running the tests is only supported on Linux.
@@ -75,8 +75,8 @@ It includes other projects baked in, see `vendor` folder in the
 repository.
 
 
-Supported Platforms / Compilers
--------------------------------
+Supported platforms and compilers
+---------------------------------
 
 Same as Spew3D.
 
