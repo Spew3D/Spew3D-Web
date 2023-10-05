@@ -30,7 +30,6 @@ license, see accompanied LICENSE.md.
 
 #include <stdint.h>
 
-
 S3DEXP int s3dw_bignum_VerifyStrInt(const char *v);
 
 S3DEXP int s3dw_bignum_VerifyStrIntBuf(

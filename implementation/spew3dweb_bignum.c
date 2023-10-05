@@ -33,9 +33,7 @@ license, see accompanied LICENSE.md.
 #include <string.h>
 #include <unistd.h>
 
-
 //#define _SPEW3D_BIGINT_DEBUG
-
 
 S3DEXP void s3dw_bignum_PrintFloatBuf(
         const char *v, size_t vlen
