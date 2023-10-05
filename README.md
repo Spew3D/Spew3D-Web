@@ -18,6 +18,16 @@ library.
   ways, and related helper functions e.g. for URI encoding.
   [See funcs here...](/include/spew3dweb_uri.h)
 
+- **Big number parser:** Parse big fractional numbers from strings of
+  format `-DDDDD.DDDDD` with `D` being a digit from `0` to `9`, the
+  leading minus and the fractional dot being optonal, and allow various
+  operations on them.
+
+  Some operations will trim down the fractional part
+  to limited precision, but the non-fractional number has no limit
+  other than the total system memory available.
+  [See funcs here...](/include/spew3dweb_bignum.h)
+
 For everything else, the [header files](./include/) themselves
 may include guidance and basic functionality, as well as
 the ['examples' folder](./examples/).
