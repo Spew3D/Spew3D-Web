@@ -29,6 +29,18 @@ license, see accompanied LICENSE.md.
 
 #include <assert.h>
 
+S3DEXP int s3dw_html_IsValidTagContinuationByte(char s) {
+    if (s >= 'a' && s <= 'z')
+        return 1;
+    if (s >= 'A' && s <= 'Z')
+        return 1;
+    if (s >= '0' && s <= '9')
+        return 1;
+    if (s == '-' || s == '.' || s == '_' || (int)((unsigned char)s) > 127)
+        return 1;
+    return 0;
+}
+
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
         const char *s, size_t slen,
         const char **out_tagname_start,
@@ -38,6 +50,31 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
         return 0;
     char inquote = '\0';
     size_t i = 1;
+    while (i < slen && (s[i] == ' ' ||
+            s[i] == '\t')) {
+        i += 1;
+    }
+    if (i < slen && (s[i] == '/' || s[i] == '\t'))
+        i += 1;
+    while (i < slen && (s[i] == ' ' ||
+            s[i] == '\t')) {
+        i += 1;
+    }
+    const char *tagname_start = s + i;
+    int tagname_len = 1;
+    if ((s[i] < 'a' || s[i] > 'z') &&
+            (s[i] < 'A' || s[i] > 'Z')) {
+        tagname_start = NULL;
+        tagname_len = 0;
+        i += 1;
+    } else {
+        i += 1;
+        while (i < slen &&
+                s3dw_html_IsValidTagContinuationByte(s[i])) {
+            tagname_len += 1;
+            i += 1;
+        }
+    }
     while (i < slen) {
         if (inquote == '\0' && (
                 s[i] == '\'' ||
@@ -46,6 +83,10 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
         } else if (inquote == s[i]) {
             inquote = '\0';
         } else if (inquote == '\0' && s[i] == '>') {
+             if (out_tagname_start)
+                *out_tagname_start = tagname_start;
+            if (out_tagname_len)
+                *out_tagname_len = tagname_len;
             return i + 1;
         }
         i += 1;

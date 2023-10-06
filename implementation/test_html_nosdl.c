@@ -40,11 +40,15 @@ START_TEST(test_html_get_tag_length)
 {
     size_t result;
     {
+        const char *tagstart;
+        size_t taglen;
         result = s3dw_html_GetTagLengthStr(
             "<img src=\"<img >src=.png\"/> bla.",
-            NULL, NULL
+            &tagstart, &taglen
         );
         ck_assert(result == 27);
+        ck_assert(taglen == 3);
+        ck_assert_mem_eq(tagstart, "img", 3);
     }
 }
 END_TEST

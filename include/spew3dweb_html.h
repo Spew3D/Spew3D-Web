@@ -32,6 +32,8 @@ license, see accompanied LICENSE.md.
 #include <stdio.h>
 #include <stdlib.h>  // for size_t
 
+S3DEXP int s3dw_html_IsValidTagContinuationByte(char s);
+
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
     const char *s, size_t slen,
     const char **out_tagname_tart,
