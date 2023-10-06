@@ -46,7 +46,7 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
         const char *s, size_t slen
         ) {
     return s3dw_html_GetTagLengthByteBufEx(
-        s, slen, NULL, NULL, NULL, NULL, NULL
+        s, slen, NULL, NULL, NULL, NULL, NULL, NULL
     );
 }
 
@@ -55,12 +55,16 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
         const char **out_tag_name_start,
         size_t *out_tag_name_len,
         int *out_invalid_in_suspicious_ways,
+        int *out_tag_syntax_type,
         void (*out_attr_callback)(
             const char *attr_name_start, size_t attr_name_len,
             const char *attr_value_start, size_t attr_value_len,
             void *userdata
         ), void *attr_callback_userdata
         ) {
+    int tagsyntaxtype = S3DW_HTML_TAG_SYNTAX_OPENINGTAG;
+
+    // Browse opening part:
     if (slen <= 0 || *s != '<')
         return 0;
     char inquote = '\0';
@@ -68,13 +72,16 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
     if (i < slen && (s[i] == ' ' ||
             s[i] == '\t'))
         return 0;
-    if (i < slen && (s[i] == '/' || s[i] == '\t')) {
+    if (i < slen && s[i] == '/') {
+        tagsyntaxtype = S3DW_HTML_TAG_SYNTAX_CLOSINGTAG;
         i += 1;
         while (i < slen && (s[i] == ' ' ||
                 s[i] == '\t')) {
             i += 1;
         }
     }
+
+    // Get the tag name:
     const char *tag_name_start = s + i;
     int tag_name_len = 1;
     if ((s[i] < 'a' || s[i] > 'z') &&
@@ -90,6 +97,8 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
             i += 1;
         }
     }
+
+    // Go through attributes up to closing bracket:
     int invalid_in_suspicious_ways = 0;
     size_t current_attr_start = 0;
     size_t current_attr_name_end = 0;
@@ -124,7 +133,8 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
             current_attr_start = 0;
             current_attr_name_end = 0;
             current_attr_value_start = 0;
-        } else if (inquote == '\0' && s[i] == '>') {
+        } else if (inquote == '\0' && (s[i] == '>' ||
+                s[i] == '/')) {
             if (current_attr_start > 0) {
                 if (current_attr_name_end == 0)
                     current_attr_name_end = i;
@@ -150,15 +160,28 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
                 }
             }
             last_nonwhitespace_was_attr_equals = 0;
-            if (out_tag_name_start)
-                *out_tag_name_start = tag_name_start;
-            if (out_tag_name_len)
-                *out_tag_name_len = tag_name_len;
-            if (out_invalid_in_suspicious_ways)
-                *out_invalid_in_suspicious_ways = (
-                    invalid_in_suspicious_ways
-                );
-            return i + 1;
+            if (s[i] == '>') {
+                if (out_tag_name_start)
+                    *out_tag_name_start = tag_name_start;
+                if (out_tag_name_len)
+                    *out_tag_name_len = tag_name_len;
+                if (out_invalid_in_suspicious_ways)
+                    *out_invalid_in_suspicious_ways = (
+                        invalid_in_suspicious_ways
+                    );
+                if (out_tag_syntax_type)
+                    *out_tag_syntax_type = tagsyntaxtype;
+                return i + 1;
+            } else {
+                assert(s[i] == '/');
+                if (tagsyntaxtype == S3DW_HTML_TAG_SYNTAX_OPENINGTAG)
+                    tagsyntaxtype = (
+                        S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG
+                    );
+            }
+            current_attr_start = 0;
+            current_attr_name_end = 0;
+            current_attr_value_start = 0;
         } else if (inquote == '\0' && s[i] == '=' &&
                 current_attr_start > 0) {
             if (current_attr_start > 0) {
@@ -208,6 +231,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStrEx(
         const char **out_tag_name_start,
         size_t *out_tag_name_len,
         int *out_invalid_in_suspicious_ways,
+        int *out_tag_syntax_type,
         void (*out_attr_callback)(
             const char *attr_name_start, size_t attr_name_len,
             const char *attr_value_start, size_t attr_value_len,
@@ -218,6 +242,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStrEx(
         s, strlen(s),
         out_tag_name_start, out_tag_name_len,
         out_invalid_in_suspicious_ways,
+        out_tag_syntax_type,
         out_attr_callback, attr_callback_userdata
     );
 }
@@ -226,7 +251,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStr(
         const char *s
         ) {
     return s3dw_html_GetTagLengthStrEx(
-        s, NULL, NULL, NULL, NULL, NULL
+        s, NULL, NULL, NULL, NULL, NULL, NULL
     );
 }
 

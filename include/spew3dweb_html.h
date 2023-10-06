@@ -32,6 +32,10 @@ license, see accompanied LICENSE.md.
 #include <stdio.h>
 #include <stdlib.h>  // for size_t
 
+#define S3DW_HTML_TAG_SYNTAX_OPENINGTAG 1
+#define S3DW_HTML_TAG_SYNTAX_CLOSINGTAG 2
+#define S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG 3
+
 S3DEXP int s3dw_html_IsValidTagContinuationByte(char s);
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
@@ -47,6 +51,7 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
     const char **out_tag_name_tart,
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
+    int *out_tag_syntax_type,
     void (*out_attr_callback)(
         const char *attr_name_start, size_t attr_name_len,
         const char *attr_value_start, size_t attr_value_len,
@@ -59,6 +64,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStrEx(
     const char **out_tag_name_tart,
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
+    int *out_tag_syntax_type,
     void (*out_attr_callback)(
         const char *attr_name_start, size_t attr_name_len,
         const char *attr_value_start, size_t attr_value_len,

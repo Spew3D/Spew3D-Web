@@ -41,6 +41,7 @@ START_TEST(test_html_get_tag_length)
     const char *tagstart;
     size_t taglen;
     int suspiciousbroken;
+    int tagsyntaxtype;
     size_t result;
     {
         const char *tagstart;
@@ -48,8 +49,11 @@ START_TEST(test_html_get_tag_length)
         result = s3dw_html_GetTagLengthStrEx(
             "<img src=\"<img >src=.png\"/> bla.",
             &tagstart, &taglen, &suspiciousbroken,
+            &tagsyntaxtype,
             NULL, NULL
         );
+        ck_assert(tagsyntaxtype ==
+                  S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG);
         ck_assert(result == 27);
         ck_assert(taglen == 3);
         ck_assert(!suspiciousbroken);
@@ -59,27 +63,45 @@ START_TEST(test_html_get_tag_length)
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
-            "<img \" src=\"<img >src=.png/>\"/>",
+            "<img \" src=\"<img >src=.png/>\">",
             &tagstart, &taglen, &suspiciousbroken,
+            &tagsyntaxtype,
             NULL, NULL
         );
-        ck_assert(result == 31);
+        ck_assert(tagsyntaxtype ==
+                  S3DW_HTML_TAG_SYNTAX_OPENINGTAG);
+        ck_assert(result == 30);
         ck_assert(taglen == 3);
         ck_assert(suspiciousbroken);
         ck_assert_mem_eq(tagstart, "img", 3);
     }
-     {
+    {
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
             "<img-test =\"<img >src=.png/>\"/>",
             &tagstart, &taglen, &suspiciousbroken,
-            NULL, NULL
+            NULL, NULL, NULL
         );
         ck_assert(result == 18);
         ck_assert(taglen == 8);
         ck_assert(suspiciousbroken);
-        ck_assert_mem_eq(tagstart, "img", 3);
+        ck_assert_mem_eq(tagstart, "img-test", 3);
+    }
+    {
+        const char *tagstart;
+        size_t taglen;
+        result = s3dw_html_GetTagLengthStrEx(
+            "</img-test / =\"<img >src=.png/>\"/>",
+            &tagstart, &taglen, &suspiciousbroken,
+            &tagsyntaxtype, NULL, NULL
+        );
+        ck_assert(tagsyntaxtype ==
+                  S3DW_HTML_TAG_SYNTAX_CLOSINGTAG);
+        ck_assert(result == 21);
+        ck_assert(taglen == 8);
+        ck_assert(suspiciousbroken);
+        ck_assert_mem_eq(tagstart, "img-test", 3);
     }
 }
 END_TEST
