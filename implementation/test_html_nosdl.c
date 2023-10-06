@@ -53,7 +53,7 @@ START_TEST(test_html_get_tag_length)
             NULL, NULL
         );
         ck_assert(tagsyntaxtype ==
-                  S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG);
+                  S3DW_TAGSYNTAX_SELFCLOSINGTAG);
         ck_assert(result == 27);
         ck_assert(taglen == 3);
         ck_assert(!suspiciousbroken);
@@ -69,7 +69,7 @@ START_TEST(test_html_get_tag_length)
             NULL, NULL
         );
         ck_assert(tagsyntaxtype ==
-                  S3DW_HTML_TAG_SYNTAX_OPENINGTAG);
+                  S3DW_TAGSYNTAX_OPENINGTAG);
         ck_assert(result == 30);
         ck_assert(taglen == 3);
         ck_assert(suspiciousbroken);
@@ -97,7 +97,7 @@ START_TEST(test_html_get_tag_length)
             &tagsyntaxtype, NULL, NULL
         );
         ck_assert(tagsyntaxtype ==
-                  S3DW_HTML_TAG_SYNTAX_CLOSINGTAG);
+                  S3DW_TAGSYNTAX_CLOSINGTAG);
         ck_assert(result == 21);
         ck_assert(taglen == 8);
         ck_assert(suspiciousbroken);

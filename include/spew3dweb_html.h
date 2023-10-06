@@ -32,19 +32,26 @@ license, see accompanied LICENSE.md.
 #include <stdio.h>
 #include <stdlib.h>  // for size_t
 
-#define S3DW_HTML_TAG_SYNTAX_OPENINGTAG 1
-#define S3DW_HTML_TAG_SYNTAX_CLOSINGTAG 2
-#define S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG 3
+#define S3DW_TAGSYNTAX_OPENINGTAG 1
+#define S3DW_TAGSYNTAX_CLOSINGTAG 2
+#define S3DW_TAGSYNTAX_SELFCLOSINGTAG 3
 
-S3DEXP size_t s3dw_html_ExtractNextTag(
+#define S3DW_HTMLEXTRACTTAG_RESULT_SUCCESS 0
+#define S3DW_HTMLEXTRACTTAG_RESULT_NOVALIDTAG 1
+#define S3DW_HTMLEXTRACTTAG_RESULT_OUTOFMEMORY 2
+
+S3DEXP int s3dw_html_ExtractNextTag(
     const char *s, size_t slen,
     int opt_force_keep_invalid_attributes,
 
+    size_t *out_tag_byteslen,
     char **out_tag_name,
-    int **out_tag_syntax_type,
+    int *out_tag_syntax_type,
     size_t *out_attribute_count,
-    char **out_attribute_name,
-    size_t **out_attribute_name_len
+    char ***out_attribute_name,
+    size_t **out_attribute_name_len,
+    char ***out_attribute_value,
+    size_t **out_attribute_value_len
 );
 
 S3DEXP int s3dw_html_IsValidTagContinuationByte(char s);
@@ -65,7 +72,7 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
     int *out_tag_syntax_type,
-    void (*out_attr_callback)(
+    int (*out_attr_callback)(
         const char *attr_name_start, size_t attr_name_len,
         const char *attr_value_start, size_t attr_value_len,
         void *userdata
@@ -80,7 +87,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStrEx(
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
     int *out_tag_syntax_type,
-    void (*out_attr_callback)(
+    int (*out_attr_callback)(
         const char *attr_name_start, size_t attr_name_len,
         const char *attr_value_start, size_t attr_value_len,
         void *userdata
