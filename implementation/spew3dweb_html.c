@@ -75,19 +75,31 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
             i += 1;
         }
     }
+    int last_nonwhitespace_was_equals = 0;
     while (i < slen) {
         if (inquote == '\0' && (
                 s[i] == '\'' ||
-                s[i] == '\"')) {
+                s[i] == '\"') &&
+                last_nonwhitespace_was_equals) {
+            last_nonwhitespace_was_equals = 0;
             inquote = s[i];
         } else if (inquote == s[i]) {
+            last_nonwhitespace_was_equals = 0;
             inquote = '\0';
         } else if (inquote == '\0' && s[i] == '>') {
-             if (out_tagname_start)
+            last_nonwhitespace_was_equals = 0;
+            if (out_tagname_start)
                 *out_tagname_start = tagname_start;
             if (out_tagname_len)
                 *out_tagname_len = tagname_len;
             return i + 1;
+        } else if (s[i] == '=') {
+            last_nonwhitespace_was_equals = 1;
+        } else if (s[i] == ' ' || s[i] == '\r' ||
+                s[i] == '\n' || s[i] == '\t') {
+            // Nothing to do here.
+        } else {
+            last_nonwhitespace_was_equals = 0;
         }
         i += 1;
     }
