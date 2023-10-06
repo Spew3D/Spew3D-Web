@@ -46,12 +46,14 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
         const char *s, size_t slen
         ) {
     return s3dw_html_GetTagLengthByteBufEx(
-        s, slen, NULL, NULL, NULL, NULL, NULL, NULL
+        s, slen, 0, NULL, NULL, NULL, NULL, NULL, NULL
     );
 }
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
         const char *s, size_t slen,
+        int opt_force_keep_invalid_attributes,
+
         const char **out_tag_name_start,
         size_t *out_tag_name_len,
         int *out_invalid_in_suspicious_ways,
@@ -228,6 +230,8 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
 
 S3DEXP size_t s3dw_html_GetTagLengthStrEx(
         const char *s,
+        int opt_force_keep_invalid_attributes,
+
         const char **out_tag_name_start,
         size_t *out_tag_name_len,
         int *out_invalid_in_suspicious_ways,
@@ -240,6 +244,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStrEx(
         ) {
     return s3dw_html_GetTagLengthByteBufEx(
         s, strlen(s),
+        opt_force_keep_invalid_attributes,
         out_tag_name_start, out_tag_name_len,
         out_invalid_in_suspicious_ways,
         out_tag_syntax_type,
@@ -251,7 +256,7 @@ S3DEXP size_t s3dw_html_GetTagLengthStr(
         const char *s
         ) {
     return s3dw_html_GetTagLengthStrEx(
-        s, NULL, NULL, NULL, NULL, NULL, NULL
+        s, 0, NULL, NULL, NULL, NULL, NULL, NULL
     );
 }
 

@@ -10,6 +10,9 @@ library.
 
 **Provided formats:**
 
+- **HTML parser:** for parsing HTML and XML tag soups, with optional
+  low level streaming parsing for fast processing.
+
 - **Markdown parser:** for the common document text format, supporting
   the common basics along with tables, and more.
   [Read tutorial here...](/docs/Markdown.md)
@@ -49,8 +52,9 @@ them from:
   #include <spew3dweb.h>  // must be included after spew3d.h!
   ```
 
-**Step 2:** In only a single object file, add this define which
-will make it contain the actual implementation code and not just its API:
+**Step 2:** In only a single object file, add a `#define
+SPEW3DWEB_IMPLEMENTATION` which will make it contain the actual
+implementation code and not just its API header:
 
   ```C
   #define SPEW3D_IMPLEMENTATION

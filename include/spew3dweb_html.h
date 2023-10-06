@@ -36,6 +36,17 @@ license, see accompanied LICENSE.md.
 #define S3DW_HTML_TAG_SYNTAX_CLOSINGTAG 2
 #define S3DW_HTML_TAG_SYNTAX_SELFCLOSINGTAG 3
 
+S3DEXP size_t s3dw_html_ExtractNextTag(
+    const char *s, size_t slen,
+    int opt_force_keep_invalid_attributes,
+
+    char **out_tag_name,
+    int **out_tag_syntax_type,
+    size_t *out_attribute_count,
+    char **out_attribute_name,
+    size_t **out_attribute_name_len
+);
+
 S3DEXP int s3dw_html_IsValidTagContinuationByte(char s);
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
@@ -48,7 +59,9 @@ S3DEXP size_t s3dw_html_GetTagLengthStr(
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
     const char *s, size_t slen,
-    const char **out_tag_name_tart,
+    int opt_force_keep_invalid_attributes,
+
+    const char **out_tag_name_start,
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
     int *out_tag_syntax_type,
@@ -61,7 +74,9 @@ S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
 
 S3DEXP size_t s3dw_html_GetTagLengthStrEx(
     const char *s,
-    const char **out_tag_name_tart,
+    int opt_force_keep_invalid_attributes,
+
+    const char **out_tag_name_start,
     size_t *out_tag_name_len,
     int *out_invalid_in_suspicious_ways,
     int *out_tag_syntax_type,

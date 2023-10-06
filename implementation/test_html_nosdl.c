@@ -47,7 +47,7 @@ START_TEST(test_html_get_tag_length)
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
-            "<img src=\"<img >src=.png\"/> bla.",
+            "<img src=\"<img >src=.png\"/> bla.", 0,
             &tagstart, &taglen, &suspiciousbroken,
             &tagsyntaxtype,
             NULL, NULL
@@ -63,7 +63,7 @@ START_TEST(test_html_get_tag_length)
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
-            "<img \" src=\"<img >src=.png/>\">",
+            "<img \" src=\"<img >src=.png/>\">", 0,
             &tagstart, &taglen, &suspiciousbroken,
             &tagsyntaxtype,
             NULL, NULL
@@ -79,7 +79,7 @@ START_TEST(test_html_get_tag_length)
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
-            "<img-test =\"<img >src=.png/>\"/>",
+            "<img-test =\"<img >src=.png/>\"/>", 0,
             &tagstart, &taglen, &suspiciousbroken,
             NULL, NULL, NULL
         );
@@ -92,7 +92,7 @@ START_TEST(test_html_get_tag_length)
         const char *tagstart;
         size_t taglen;
         result = s3dw_html_GetTagLengthStrEx(
-            "</img-test / =\"<img >src=.png/>\"/>",
+            "</img-test / =\"<img >src=.png/>\"/>", 0,
             &tagstart, &taglen, &suspiciousbroken,
             &tagsyntaxtype, NULL, NULL
         );
