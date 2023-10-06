@@ -35,15 +35,35 @@ license, see accompanied LICENSE.md.
 S3DEXP int s3dw_html_IsValidTagContinuationByte(char s);
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
-    const char *s, size_t slen,
-    const char **out_tagname_tart,
-    size_t *out_tagname_len
+    const char *s, size_t slen
 );
 
 S3DEXP size_t s3dw_html_GetTagLengthStr(
+    const char *s
+);
+
+S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
+    const char *s, size_t slen,
+    const char **out_tag_name_tart,
+    size_t *out_tag_name_len,
+    int *out_invalid_in_suspicious_ways,
+    void (*out_attr_callback)(
+        const char *attr_name_start, size_t attr_name_len,
+        const char *attr_value_start, size_t attr_value_len,
+        void *userdata
+    ), void *attr_callback_userdata
+);
+
+S3DEXP size_t s3dw_html_GetTagLengthStrEx(
     const char *s,
-    const char **out_tagname_tart,
-    size_t *out_tagname_len
+    const char **out_tag_name_tart,
+    size_t *out_tag_name_len,
+    int *out_invalid_in_suspicious_ways,
+    void (*out_attr_callback)(
+        const char *attr_name_start, size_t attr_name_len,
+        const char *attr_value_start, size_t attr_value_len,
+        void *userdata
+    ), void *attr_callback_userdata
 );
 
 #endif  // SPEW3DWEB_HTML_H_

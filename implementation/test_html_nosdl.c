@@ -38,27 +38,47 @@ license, see accompanied LICENSE.md.
 
 START_TEST(test_html_get_tag_length)
 {
+    const char *tagstart;
+    size_t taglen;
+    int suspiciousbroken;
     size_t result;
     {
         const char *tagstart;
         size_t taglen;
-        result = s3dw_html_GetTagLengthStr(
+        result = s3dw_html_GetTagLengthStrEx(
             "<img src=\"<img >src=.png\"/> bla.",
-            &tagstart, &taglen
+            &tagstart, &taglen, &suspiciousbroken,
+            NULL, NULL
         );
         ck_assert(result == 27);
         ck_assert(taglen == 3);
+        ck_assert(!suspiciousbroken);
         ck_assert_mem_eq(tagstart, "img", 3);
     }
     {
         const char *tagstart;
         size_t taglen;
-        result = s3dw_html_GetTagLengthStr(
+        result = s3dw_html_GetTagLengthStrEx(
             "<img \" src=\"<img >src=.png/>\"/>",
-            &tagstart, &taglen
+            &tagstart, &taglen, &suspiciousbroken,
+            NULL, NULL
         );
         ck_assert(result == 31);
         ck_assert(taglen == 3);
+        ck_assert(suspiciousbroken);
+        ck_assert_mem_eq(tagstart, "img", 3);
+    }
+     {
+        const char *tagstart;
+        size_t taglen;
+        result = s3dw_html_GetTagLengthStrEx(
+            "<img-test =\"<img >src=.png/>\"/>",
+            &tagstart, &taglen, &suspiciousbroken,
+            NULL, NULL
+        );
+        ck_assert(result == 18);
+        ck_assert(taglen == 8);
+        ck_assert(suspiciousbroken);
         ck_assert_mem_eq(tagstart, "img", 3);
     }
 }

@@ -36,83 +36,197 @@ S3DEXP int s3dw_html_IsValidTagContinuationByte(char s) {
         return 1;
     if (s >= '0' && s <= '9')
         return 1;
-    if (s == '-' || s == '.' || s == '_' || (int)((unsigned char)s) > 127)
+    if (s == '-' || s == '.' || s == '_' ||
+            (int)((unsigned char)s) > 127)
         return 1;
     return 0;
 }
 
 S3DEXP size_t s3dw_html_GetTagLengthByteBuf(
+        const char *s, size_t slen
+        ) {
+    return s3dw_html_GetTagLengthByteBufEx(
+        s, slen, NULL, NULL, NULL, NULL, NULL
+    );
+}
+
+S3DEXP size_t s3dw_html_GetTagLengthByteBufEx(
         const char *s, size_t slen,
-        const char **out_tagname_start,
-        size_t *out_tagname_len
+        const char **out_tag_name_start,
+        size_t *out_tag_name_len,
+        int *out_invalid_in_suspicious_ways,
+        void (*out_attr_callback)(
+            const char *attr_name_start, size_t attr_name_len,
+            const char *attr_value_start, size_t attr_value_len,
+            void *userdata
+        ), void *attr_callback_userdata
         ) {
     if (slen <= 0 || *s != '<')
         return 0;
     char inquote = '\0';
     size_t i = 1;
-    while (i < slen && (s[i] == ' ' ||
-            s[i] == '\t')) {
+    if (i < slen && (s[i] == ' ' ||
+            s[i] == '\t'))
+        return 0;
+    if (i < slen && (s[i] == '/' || s[i] == '\t')) {
         i += 1;
+        while (i < slen && (s[i] == ' ' ||
+                s[i] == '\t')) {
+            i += 1;
+        }
     }
-    if (i < slen && (s[i] == '/' || s[i] == '\t'))
-        i += 1;
-    while (i < slen && (s[i] == ' ' ||
-            s[i] == '\t')) {
-        i += 1;
-    }
-    const char *tagname_start = s + i;
-    int tagname_len = 1;
+    const char *tag_name_start = s + i;
+    int tag_name_len = 1;
     if ((s[i] < 'a' || s[i] > 'z') &&
             (s[i] < 'A' || s[i] > 'Z')) {
-        tagname_start = NULL;
-        tagname_len = 0;
+        tag_name_start = NULL;
+        tag_name_len = 0;
         i += 1;
     } else {
         i += 1;
         while (i < slen &&
                 s3dw_html_IsValidTagContinuationByte(s[i])) {
-            tagname_len += 1;
+            tag_name_len += 1;
             i += 1;
         }
     }
-    int last_nonwhitespace_was_equals = 0;
+    int invalid_in_suspicious_ways = 0;
+    size_t current_attr_start = 0;
+    size_t current_attr_name_end = 0;
+    size_t current_attr_value_start = 0;
+    int last_nonwhitespace_was_attr_equals = 0;
     while (i < slen) {
         if (inquote == '\0' && (
                 s[i] == '\'' ||
                 s[i] == '\"') &&
-                last_nonwhitespace_was_equals) {
-            last_nonwhitespace_was_equals = 0;
+                last_nonwhitespace_was_attr_equals) {
+            assert(current_attr_start > 0);
+            assert(current_attr_name_end > current_attr_start);
+            last_nonwhitespace_was_attr_equals = 0;
             inquote = s[i];
+            current_attr_value_start = i;
         } else if (inquote == s[i]) {
-            last_nonwhitespace_was_equals = 0;
+            assert(current_attr_start > 0);
+            assert(current_attr_name_end > current_attr_start);
+            assert(current_attr_value_start > current_attr_name_end);
+            if (out_attr_callback != NULL) {
+                out_attr_callback(
+                    s + current_attr_start,
+                    (current_attr_name_end -
+                     current_attr_start),
+                    s + current_attr_value_start,
+                    ((i + 1) - current_attr_value_start),
+                    attr_callback_userdata
+                );
+            }
+            last_nonwhitespace_was_attr_equals = 0;
             inquote = '\0';
+            current_attr_start = 0;
+            current_attr_name_end = 0;
+            current_attr_value_start = 0;
         } else if (inquote == '\0' && s[i] == '>') {
-            last_nonwhitespace_was_equals = 0;
-            if (out_tagname_start)
-                *out_tagname_start = tagname_start;
-            if (out_tagname_len)
-                *out_tagname_len = tagname_len;
+            if (current_attr_start > 0) {
+                if (current_attr_name_end == 0)
+                    current_attr_name_end = i;
+                if (out_attr_callback != NULL) {
+                    if (current_attr_value_start > 0) {
+                        out_attr_callback(
+                            s + current_attr_start,
+                            (current_attr_name_end -
+                             current_attr_start),
+                            s + current_attr_value_start,
+                            ((i + 1) - current_attr_value_start),
+                            attr_callback_userdata
+                        );
+                    } else {
+                        out_attr_callback(
+                            s + current_attr_start,
+                            (current_attr_name_end -
+                             current_attr_start),
+                            NULL, 0,
+                            attr_callback_userdata
+                        );
+                    }
+                }
+            }
+            last_nonwhitespace_was_attr_equals = 0;
+            if (out_tag_name_start)
+                *out_tag_name_start = tag_name_start;
+            if (out_tag_name_len)
+                *out_tag_name_len = tag_name_len;
+            if (out_invalid_in_suspicious_ways)
+                *out_invalid_in_suspicious_ways = (
+                    invalid_in_suspicious_ways
+                );
             return i + 1;
-        } else if (s[i] == '=') {
-            last_nonwhitespace_was_equals = 1;
-        } else if (s[i] == ' ' || s[i] == '\r' ||
-                s[i] == '\n' || s[i] == '\t') {
-            // Nothing to do here.
-        } else {
-            last_nonwhitespace_was_equals = 0;
+        } else if (inquote == '\0' && s[i] == '=' &&
+                current_attr_start > 0) {
+            if (current_attr_start > 0) {
+                last_nonwhitespace_was_attr_equals = 1;
+                if (current_attr_name_end == 0)
+                    current_attr_name_end = i;
+            } else {
+                last_nonwhitespace_was_attr_equals = 0;
+                invalid_in_suspicious_ways = 1;
+            }
+        } else if (inquote == '\0' && (
+                s[i] == ' ' || s[i] == '\r' ||
+                s[i] == '\n' || s[i] == '\t')) {
+            if (current_attr_start > 0) {
+                current_attr_name_end = i;
+            }
+        } else if (inquote == '\0') {
+            last_nonwhitespace_was_attr_equals = 0;
+            if (inquote == '\0' && (
+                    s[i] == '\'' ||
+                    s[i] == '\"')) {
+                invalid_in_suspicious_ways = 1;
+            }
+            if (current_attr_start == 0 ||
+                    current_attr_name_end > 0) {
+                if (current_attr_name_end > 0 &&
+                        out_attr_callback != NULL) {
+                    out_attr_callback(
+                        s + current_attr_start,
+                        (current_attr_name_end -
+                         current_attr_start),
+                        NULL, 0,
+                        attr_callback_userdata
+                    );
+                }
+                current_attr_start = i;
+                current_attr_name_end = 0;
+            }
         }
         i += 1;
     }
     return 0;
 }
 
-S3DEXP size_t s3dw_html_GetTagLengthStr(
+S3DEXP size_t s3dw_html_GetTagLengthStrEx(
         const char *s,
-        const char **out_tagname_start,
-        size_t *out_tagname_len
+        const char **out_tag_name_start,
+        size_t *out_tag_name_len,
+        int *out_invalid_in_suspicious_ways,
+        void (*out_attr_callback)(
+            const char *attr_name_start, size_t attr_name_len,
+            const char *attr_value_start, size_t attr_value_len,
+            void *userdata
+        ), void *attr_callback_userdata
         ) {
-    return s3dw_html_GetTagLengthByteBuf(s, strlen(s),
-        out_tagname_start, out_tagname_len
+    return s3dw_html_GetTagLengthByteBufEx(
+        s, strlen(s),
+        out_tag_name_start, out_tag_name_len,
+        out_invalid_in_suspicious_ways,
+        out_attr_callback, attr_callback_userdata
+    );
+}
+
+S3DEXP size_t s3dw_html_GetTagLengthStr(
+        const char *s
+        ) {
+    return s3dw_html_GetTagLengthStrEx(
+        s, NULL, NULL, NULL, NULL, NULL
     );
 }
 
