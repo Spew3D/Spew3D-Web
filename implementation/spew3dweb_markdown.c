@@ -506,27 +506,45 @@ static int _spew3d_markdown_process_inline_content(
                 if (!INS("<code>"))
                     goto errorquit;
                 i += 1;
-                while (i < ipastend &&
-                        linebuf[i] != '`') {
-                    if (linebuf[i] == '<') {
-                        if (!INS("&lt;"))
-                            goto errorquit;
-                    } else if (linebuf[i] == '>') {
-                        if (!INS("&gt;"))
-                            goto errorquit;
-                    } else if (linebuf[i] == '&') {
-                        if (!INS("&amp;"))
-                            goto errorquit;
-                    } else {
-                        if (!INSC(linebuf[i]))
-                            goto errorquit;
+                while (iline <= endline) {
+                    while (i < ipastend &&
+                            linebuf[i] != '`') {
+                        if (linebuf[i] == '<') {
+                            if (!INS("&lt;"))
+                                goto errorquit;
+                        } else if (linebuf[i] == '>') {
+                            if (!INS("&gt;"))
+                                goto errorquit;
+                        } else if (linebuf[i] == '&') {
+                            if (!INS("&amp;"))
+                                goto errorquit;
+                        } else {
+                            if (!INSC(linebuf[i]))
+                                goto errorquit;
+                        }
+                        i += 1;
                     }
-                    i += 1;
+                    if (i < ipastend && linebuf[i] == '`') {
+                        if (i < ipastend && linebuf[i] == '`')
+                            i += 1;
+                        break;
+                    }
+                    iline += 1;
+                    if (iline <= endline) {
+                        if (!INS(" "))
+                            goto errorquit;
+                        ipastend = (
+                            lineinfo[iline].indentedcontentlen +
+                            lineinfo[iline].indentlen
+                        );
+                        linebuf = lineinfo[iline].linestart;
+                        i = lineinfo[iline].indentlen;
+                    }
                 }
                 if (!INS("</code>"))
                     goto errorquit;
-                if (i < ipastend && linebuf[i] == '`')
-                    i += 1;
+                if (iline > endline)
+                    break;
                 continue;
             } else if (linebuf[i] == '\\' && !as_code) {
                 if (i < ipastend) {

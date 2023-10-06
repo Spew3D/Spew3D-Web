@@ -541,6 +541,16 @@ START_TEST(test_markdown_tohtml)
             "<p><img width='5%' height='3px' src='test.png'/></p>"));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "- *This is a multiline test `(inner\n  code)`,* complex!"
+        );
+        printf("test_markdown_tohtml result #15: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ul><li><p><em>This is a multiline test <code>"
+            "(inner code)</code>,</em> complex!</p></li></ul>"));
+        free(result);
+    }
 }
 END_TEST
 
