@@ -1372,6 +1372,26 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
             i3 = url_start;
             assert(i3 < inputlen);
             assert(url_start + url_len <= inputlen);
+
+            int url_spacing_start = 0;
+            while (url_start + url_spacing_start < url_start + url_len && (
+                    input[url_start + url_spacing_start] == ' ' ||
+                    input[url_start + url_spacing_start] == '\t' ||
+                    input[url_start + url_spacing_start] == '\r' ||
+                    input[url_start + url_spacing_start] == '\n'))
+                url_spacing_start += 1;
+            int url_spacing_end = 0;
+            while (url_spacing_end < url_len && (
+                    input[url_start + url_len -
+                        url_spacing_end - 1] == ' ' ||
+                    input[url_start + url_len -
+                        url_spacing_end - 1] == '\t' ||
+                    input[url_start + url_len -
+                        url_spacing_end - 1] == '\r' ||
+                    input[url_start + url_len -
+                        url_spacing_end - 1] == '\n'))
+                url_spacing_end += 1;
+
             int url_seen_questionmark = 0;
             char _uribuf_stack[128] = "";
             char *uribuf = _uribuf_stack;
@@ -1392,21 +1412,31 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                     uribufalloc *= 4;
                 }
                 if (input[i3] == '\r' || input[i3] == '\n') {
-                    if (input[i3] == '\n' &&
+                    const int linebreaki3 = i3;
+                    if (input[i3] == '\r' &&
                             i3 + 1 < url_start + url_len &&
-                            input[i3] == '\n')
+                            input[i3 + 1] == '\n')
                         i3 += 1;
                     i3 += 1;
-                    if (uribuffill <= 0 ||
-                            uribuf[uribuffill - 1] != '/') {
-                        memcpy(uribuf + uribuffill, "%20", 4);
-                        uribuffill += 3;
+                    if (linebreaki3 < url_start + url_spacing_start ||
+                            linebreaki3 >= url_start + url_len -
+                            url_spacing_end) {
+                        uribuf[uribuffill] = '\n';
+                        uribuf[uribuffill + 1] = '\0';
+                        uribuffill += 1;
+                        continue;
+                    } else {
+                        if (uribuffill <= 0 ||
+                                uribuf[uribuffill - 1] != '/') {
+                            memcpy(uribuf + uribuffill, "%20", 4);
+                            uribuffill += 3;
+                        }
+                        while (i3 <= url_start + url_len &&
+                                (input[i3] == ' ' ||
+                                input[i3] == '\t'))
+                            i3 += 1;
+                        continue;
                     }
-                    while (i3 <= url_start + url_len &&
-                            (input[i3] == ' ' ||
-                            input[i3] == '\t'))
-                        i3 += 1;
-                    continue;
                 } else if (input[i3] == '?') {
                     url_seen_questionmark = 1;
                 } else if (input[i3] == '\'') {
@@ -1430,15 +1460,25 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                     i3 += 1;
                     continue;
                 } else if (input[i3] == ' ') {
-                    if (!url_seen_questionmark) {
-                        memcpy(uribuf + uribuffill, "%20", 4);
-                        uribuffill += 3;
-                    } else {
-                        memcpy(uribuf + uribuffill, "+", 2);
+                    if (i3 < url_start + url_spacing_start ||
+                            i3 >= url_start + url_len -
+                            url_spacing_end) {
+                        uribuf[uribuffill] = ' ';
+                        uribuf[uribuffill + 1] = '\0';
                         uribuffill += 1;
+                        i3 += 1;
+                        continue;
+                    } else {
+                        if (!url_seen_questionmark) {
+                            memcpy(uribuf + uribuffill, "%20", 4);
+                            uribuffill += 3;
+                        } else {
+                            memcpy(uribuf + uribuffill, "+", 2);
+                            uribuffill += 1;
+                        }
+                        i3 += 1;
+                        continue;
                     }
-                    i3 += 1;
-                    continue;
                 } else if (input[i3] == '\t') {
                     memcpy(uribuf + uribuffill, "%09", 4);
                     uribuffill += 3;
@@ -1662,15 +1702,17 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
     size_t spacing_end = 0;
     i = offset;
     while (i < inputlen && (input[i] == ' ' ||
-            input[i] == '\t' || input[i] == '\r' ||
-            input[i] == '\n')) {
+            input[i] == '\t' || ((input[i] == '\r' ||
+            input[i] == '\n') &&
+            opt_trim_linebreaks_from_content))) {
         spacing_start += 1;
         i += 1;
     }
     i = endbracketidx;
-    while (i >= 0 && (input[i] == ' ' ||
-            input[i] == '\t' || input[i] == '\r' ||
-            input[i] == '\n')) {
+    while (i > 0 && (input[i - 1] == ' ' ||
+            input[i - 1] == '\t' || ((input[i - 1] == '\r' ||
+            input[i - 1] == '\n') &&
+            opt_trim_linebreaks_from_content))) {
         spacing_end += 1;
         i -= 1;
     }
@@ -1681,7 +1723,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_GetInlineEndBracket(
     }
     if (out_spacingstart) *out_spacingstart = spacing_start;
     if (out_spacingend) *out_spacingend = spacing_end;
-    return i;
+    return endbracketidx;
 }
 
 S3DHID int _internal_spew3dweb_markdown_GetLinkOrImgLen(

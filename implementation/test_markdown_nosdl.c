@@ -306,6 +306,28 @@ START_TEST(test_markdown_clean)
                       ) == 0);
         free(result);
     }
+    {
+        const char input[] = "[a](\nb\n)";
+        result = _internal_spew3dweb_markdown_CleanByteBufEx(
+            input, strlen(input),
+            1, 1, 0, 1, NULL, NULL,
+            NULL, NULL
+        );
+        printf("test_markdown_clean result #26: <<%s>>\n", result);
+        assert(strcmp(result, "[a](b)") == 0);
+        free(result);
+    }
+    {
+        const char input[] = "[a](\nb\n)";
+        result = _internal_spew3dweb_markdown_CleanByteBufEx(
+            input, strlen(input),
+            0, 1, 0, 1, NULL, NULL,
+            NULL, NULL
+        );
+        printf("test_markdown_clean result #27: <<%s>>\n", result);
+        assert(strcmp(result, "[a](\nb\n)") == 0);
+        free(result);
+    }
 }
 END_TEST
 
@@ -549,6 +571,15 @@ START_TEST(test_markdown_tohtml)
         assert(_s3dw_check_html_same(result,
             "<ul><li><p><em>This is a multiline test <code>"
             "(inner code)</code>,</em> complex!</p></li></ul>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "[a](\nb\n)"
+        );
+        printf("test_markdown_tohtml result #15: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p><a href='b'>a</a></p>"));
         free(result);
     }
 }
