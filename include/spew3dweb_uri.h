@@ -196,5 +196,13 @@ S3DEXP char *s3d_uri_SetFileExtension(
     const char *uri, const char *new_extension
 );
 
+S3DEXP int s3d_uri_EndsInCommonExecutableFileExtension(
+    const char *p, size_t plen
+);
+
+S3DEXP int s3d_uri_EndsInCommonFileExtension(
+    const char *p, size_t plen
+);
+
 #endif  // SPEW3DWEB_URI_H_
 

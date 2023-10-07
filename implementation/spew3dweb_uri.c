@@ -135,16 +135,16 @@ static int _uri_set_resource_from_uri_encoded_str(
         anchorstringstart += 1;
     }
     if (known_protocol != NULL &&
-            strcasecmp(known_protocol, "file") == 0) {
+            s3dstrcasecmp(known_protocol, "file") == 0) {
         // These don't have query strings.
         querystringstart = anchorstringstart;
     }
     result->resource = _internal_s3d_uri_ParsePath(
         encodedpath, querystringstart,
         (!result->protocol ||
-         strcasecmp(result->protocol, "file") != 0),
+         s3dstrcasecmp(result->protocol, "file") != 0),
         (allow_windows_separator &&
-         strcasecmp(result->protocol, "file") == 0)
+         s3dstrcasecmp(result->protocol, "file") == 0)
     );
     if (!result->resource) return 0;
     if (encodedpath[querystringstart] == '?') {
@@ -191,6 +191,63 @@ static int _clearlynotremotehostname(const char *s, int maxlen) {
     return !haddot;
 }
 
+S3DEXP int s3d_uri_EndsInCommonExecutableFileExtension(
+        const char *p, size_t plen
+        ) {
+    const char *common_extensions[] = {
+        ".exe", ".bat", ".cgi", ".pl", ".jar",
+        ".msi", ".wsf", ".sh",
+        NULL
+    };
+    int i = -1;
+    while (common_extensions[i + 1] != NULL) {
+        i += 1;
+        const int extlen = strlen(common_extensions[i]);
+        if (plen < extlen) continue;
+        if (s3dmemcasecmp(p + plen - extlen,
+                common_extensions[i], extlen) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+S3DEXP int s3d_uri_EndsInCommonFileExtension(
+        const char *p, size_t plen
+        ) {
+    const char *common_extensions[] = {
+        ".zip", ".txt", ".mp3", ".ogg", ".flac",
+        ".webp", ".avif", ".mov", ".wma", ".wav",
+        ".mid", ".midi", ".7z", ".rar", ".tar",
+        ".gz", ".h64", ".bin", ".dmg", ".iso",
+        ".cue", ".vcd", ".csv", ".doc", ".docx",
+        ".ppt", ".odt", ".pptx", ".sql", ".sav",
+        ".log", ".xml", ".html", ".css", ".dat",
+        ".eml", ".emlx", ".vcf", ".pdf",
+        ".jpg", ".png", ".jpeg", ".gif", ".bmp",
+        ".ttf", ".fnt", ".otf", ".ico", ".psd",
+        ".svg", ".htm", ".php", ".xhtml", ".odp",
+        ".c", ".py", ".java", ".xls", ".ods",
+        ".xlsm", ".xlsx", ".bak", ".cab",
+        ".conf", ".ini", "cfg", ".dll", ".so",
+        ".tmp", ".h264", ".mp4", ".webm",
+        ".mkv", ".avi", ".ogv", ".wmv",
+        ".m4v", "m4a", ".rtf", ".flv",
+        NULL
+    };
+    int i = -1;
+    while (common_extensions[i + 1] != NULL) {
+        i += 1;
+        const int extlen = strlen(common_extensions[i]);
+        if (plen < extlen) continue;
+        if (s3dmemcasecmp(p + plen - extlen,
+                common_extensions[i], extlen) == 0)
+            return 1;
+    }
+    return s3d_uri_EndsInCommonExecutableFileExtension(
+        p, plen
+    );
+}
+
 S3DHID s3duri *_internal_s3d_uri_ParseEx(
         const char *uristr,
         const char *default_remote_protocol,
@@ -200,7 +257,7 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         ) {
     if (!uristr)
         return NULL;
-    if (strcasecmp(default_remote_protocol, "file") == 0)
+    if (s3dstrcasecmp(default_remote_protocol, "file") == 0)
         return NULL;  // This will otherwise break things.
     int allow_windows_separator = !disable_windows_separator;
 
@@ -240,7 +297,7 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         part += 3;
         lastdotindex = -1;
         part_start = part;
-        if (strcasecmp(result->protocol, "file") == 0) {
+        if (s3dstrcasecmp(result->protocol, "file") == 0) {
             if (!_uri_set_resource_from_uri_encoded_str(
                     result, "file", part_start,
                     allow_windows_separator
@@ -357,9 +414,9 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
     } else if ((*part == '/' || *part == '\0' ||
             *part == '#' || *part == '?') &&
             ((result->protocol != NULL &&
-            strcasecmp(result->protocol, "file") != 0) ||
+            s3dstrcasecmp(result->protocol, "file") != 0) ||
             (!_clearlynotremotehostname(part_start, part - part_start) &&
-            strcasecmp(default_relative_path_protocol, "file") != 0))) {
+            s3dstrcasecmp(default_relative_path_protocol, "file") != 0))) {
         // We've had a protocol in front, so first slash ends host:
         result->host = malloc(part - part_start + 1);
         if (!result->host) {
@@ -404,7 +461,7 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
             s3d_uri_Free(result);
             return NULL;
         }
-        if (strcasecmp(result->protocol, "file") == 0) {
+        if (s3dstrcasecmp(result->protocol, "file") == 0) {
             // This was likely a literal file path, not an URI.
             // Therefore, assume it wasn't URI-encoded.
             autoguessedunencodedfile = 1;
@@ -427,7 +484,7 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         s3d_uri_Free(result);
         return NULL;
     }
-    if (result->protocol && strcasecmp(result->protocol, "file") == 0) {
+    if (result->protocol && s3dstrcasecmp(result->protocol, "file") == 0) {
         char *path_cleaned = (spew3d_fs_NormalizeEx(
             result->resource, allow_windows_separator, 0, '/'
         ));
@@ -531,7 +588,8 @@ S3DEXP char *s3d_uri_ToStrEx(
         uinfo->resource : ""));
     if (!path)
         return NULL;
-    if (uinfo->protocol && strcasecmp(uinfo->protocol, "file") == 0 &&
+    if (uinfo->protocol &&
+            s3dstrcasecmp(uinfo->protocol, "file") == 0 &&
             !spew3d_fs_IsAbsolutePath(path) &&
             ensure_absolute_file_paths &&
             uinfo->resource) {

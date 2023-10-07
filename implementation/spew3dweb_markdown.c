@@ -800,7 +800,8 @@ S3DEXP char *spew3dweb_markdown_MarkdownBytesToAnchor(
         int out_origlen = 0;
         int out_lowerlen = 0;
         utf8_char_to_lowercase(
-            result + iorig, &out_origlen,
+            result + iorig, (resultfill - iorig),
+            &out_origlen,
             &out_lowerlen, lowercaseresult + ilower
         );
         iorig += out_origlen;

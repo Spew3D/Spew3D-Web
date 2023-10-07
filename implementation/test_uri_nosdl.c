@@ -127,6 +127,18 @@ START_TEST (test_uri_fileextension)
         ck_assert_str_eq(result, "/docs/Resources#report-bugs");
         free(result);
     }
+    {
+        const char *p = "eajrioajer.exe";
+        ck_assert(s3d_uri_EndsInCommonExecutableFileExtension(
+            p, strlen(p)
+        ) == 1);
+    }
+    {
+        const char *p = "eajrioajer.blaexe";
+        ck_assert(s3d_uri_EndsInCommonExecutableFileExtension(
+            p, strlen(p)
+        ) == 0);
+    }
 }
 END_TEST
 
