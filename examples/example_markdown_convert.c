@@ -44,7 +44,9 @@ static const char *replace_ext_new = NULL;
 char *our_little_uri_transform_helper(
         const char *uristr, void *userdata
         ) {
-    if (!replace_ext_new)
+    if (!replace_ext_new ||
+            strstr(uristr, "://") != NULL  // Not a relative link!
+            )
         return strdup(uristr);
 
     if (replace_ext_old &&
