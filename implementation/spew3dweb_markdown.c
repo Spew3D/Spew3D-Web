@@ -980,8 +980,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             while (nestreduce > 0) {
                 assert(nestingsdepth >= nestreduce);
                 const int di = nestingsdepth - 1;
-                if (nestingstypes[di] != '>') {
-                    resultchunk[resultfill] = '\0';
+                if (nestingstypes[di] != '>' &&
+                        nestingstypes[di] != '1') {
                     if (!INS("</li></ul>\n")) {
                         errorquit: ;
                         if (lineinfoheap)
@@ -989,6 +989,9 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         free(input);
                         return NULL;
                     }
+                } else if (nestingstypes[di] == '1') {
+                    if (!INS("</ol>\n"))
+                        goto errorquit;
                 } else if (nestingstypes[di] == '>') {
                     if (!INS("</blockquote>\n"))
                         goto errorquit;
@@ -1101,15 +1104,15 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 if (!INS("</code></pre>"))
                     goto errorquit;
                 continue;
-            } else if ((lineinfo[i].indentedcontentlen >= 2 && (
+            } else if (lineinfo[i].indentedcontentlen >= 2 && (((
                     lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
-                    lineinfo[i].linestart[lineinfo[i].indentlen] == '*' ||
+                    lineinfo[i].linestart[lineinfo[i].indentlen] == '>' ||
+                    lineinfo[i].linestart[lineinfo[i].indentlen] == '*') &&
+                    lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ') ||
                     (_numentrylen = _m2htmlline_start_list_number_len(
                         lineinfo, i, &_numentryvalue
-                    )) > 0 ||
-                    lineinfo[i].linestart[lineinfo[i].indentlen] == '>') &&
-                    lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ')
-                    ) {
+                    )) > 0
+                    )) {
                 // Start of a list entry!
                 char bullettype = (
                     (_numentrylen > 0 ? '1' :

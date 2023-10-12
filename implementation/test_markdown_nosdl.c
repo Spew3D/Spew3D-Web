@@ -337,6 +337,15 @@ START_TEST(test_markdown_clean)
                       ) == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "1. test\n2.  test\n    4. testo"
+        );
+        printf("test_markdown_clean result #29: <<%s>>\n", result);
+        assert(strcmp(result, "1.  test\n2.  test\n    4.  testo"
+                      ) == 0);
+        free(result);
+    }
 }
 END_TEST
 
@@ -586,9 +595,19 @@ START_TEST(test_markdown_tohtml)
         result = spew3dweb_markdown_ToHTML(
             "[a](\nb\n)"
         );
-        printf("test_markdown_tohtml result #15: <<%s>>\n", result);
+        printf("test_markdown_tohtml result #16: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
             "<p><a href='b'>a</a></p>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "1. test\n2.  test\n    4. testo"
+        );
+        printf("test_markdown_tohtml result #17: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ol><li><p>test</p></li>"
+            "<li><p>test<ol><li><p>testo</p></li></ol></li></ol>"));
         free(result);
     }
 }

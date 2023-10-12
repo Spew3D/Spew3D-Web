@@ -612,12 +612,28 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
             (pos - bulletstartpos) + 4) : (
             (pos - bulletstartpos) + 1)
         );
+        int offset_bullet_to_text = (
+            (pos - bulletstartpos) + 1
+        );
+        int offset_line_start_to_text = (
+            (pos - startpos) + 1
+        );
         int contained_text_orig_indent = (
             effectivechars_bullet_to_text + indent_depth
         );
+        while (startpos + offset_line_start_to_text < buflen && (
+                buf[startpos + offset_line_start_to_text] == ' ' ||
+                buf[startpos + offset_line_start_to_text] == '\t')) {
+            contained_text_orig_indent += (
+                (buf[startpos + offset_line_start_to_text] ==
+                 ' ') ? 1 : 4
+            );
+            offset_bullet_to_text += 1;
+            offset_line_start_to_text += 1;
+        }
         int bullet_orig_indent = (*out_content_start);
         (*out_content_start) = (
-            (*out_content_start) + effectivechars_bullet_to_text
+            (*out_content_start) + offset_bullet_to_text
         );
         // Now determine what nesting depth:
         int list_nesting = 0;
