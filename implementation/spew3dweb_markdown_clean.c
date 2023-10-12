@@ -2104,12 +2104,13 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                     if (!INS(buf) || !INSC('.'))
                         return NULL;
                     assert(strlen(buf) >= 1);
-                    if (strlen(buf) == 1)
+                    if (strlen(buf) == 1) {
                         if (!INS("  "))
                             return NULL;
-                    else
+                    } else {
                         if (!INS(" "))
                             return NULL;
+                    }
                 } else {
                     if (!INSC(out_list_bullet_type))
                         return NULL;

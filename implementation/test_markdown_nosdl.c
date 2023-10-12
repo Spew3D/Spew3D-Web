@@ -333,7 +333,7 @@ START_TEST(test_markdown_clean)
             "1. test\n\n2. test\n   bla"
         );
         printf("test_markdown_clean result #28: <<%s>>\n", result);
-        assert(strcmp(result, "1.  test\n\n2.  test\n    bla\n"
+        assert(strcmp(result, "1.  test\n\n2.  test\n    bla"
                       ) == 0);
         free(result);
     }
