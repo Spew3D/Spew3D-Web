@@ -1198,15 +1198,16 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 if (!INSREP("`", ticks))
                     goto errorquit;
                 if (codeend - codestart > 0) {
+                    int dosquash = opt_squashmultiline ||
+                        opt_forcelinksoneline;
+                    int dofixindent = !dosquash;
                     ssize_t result = (
                         _internal_spew3dweb_markdown_AddInlineAreaClean(
                             input, codeend, codestart,
                             &resultchunk, &resultfill, &resultalloc,
                             origindent, effectiveindent,
-                            1,
-                            // We want to always fix indents (unless squashing):
-                            !opt_squashmultiline, opt_squashmultiline,
-                            1, opt_forcelinksoneline,
+                            1, 1, dosquash, dofixindent,
+                            opt_forcelinksoneline,
                             opt_escapeunambiguousentities,
                             opt_allowunsafehtml,
                             opt_stripcomments,
