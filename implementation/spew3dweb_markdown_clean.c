@@ -2053,7 +2053,10 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             ));
             assert(out_is_in_list_depth <= 0 || (
                 out_effective_indent > 0 &&
-                (out_write_this_many_spaces > 0 || isonlywhitespace)));
+                (out_write_this_many_spaces > 0 ||
+                isonlywhitespace ||
+                (out_is_list_entry &&
+                out_list_bullet_type == '1'))));
             if (isonlywhitespace) {
                 // It had only whitespace, that counts as empty.
                 assert(out_content_start > 0);

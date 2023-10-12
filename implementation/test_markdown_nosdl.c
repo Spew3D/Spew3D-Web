@@ -328,6 +328,15 @@ START_TEST(test_markdown_clean)
         assert(strcmp(result, "[a](\nb\n)") == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "1. test\n\n2. test\n   bla"
+        );
+        printf("test_markdown_clean result #28: <<%s>>\n", result);
+        assert(strcmp(result, "1.  test\n\n2.  test\n    bla\n"
+                      ) == 0);
+        free(result);
+    }
 }
 END_TEST
 
