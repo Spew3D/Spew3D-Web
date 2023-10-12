@@ -330,10 +330,10 @@ START_TEST(test_markdown_clean)
     }
     {
         result = spew3dweb_markdown_Clean(
-            "1. test\n\n2. test\n   bla"
+            "1. test\n\n2. test\n   bla\n   1. henlo"
         );
         printf("test_markdown_clean result #28: <<%s>>\n", result);
-        assert(strcmp(result, "1.  test\n\n2.  test\n    bla"
+        assert(strcmp(result, "1.  test\n\n2.  test\n    bla\n    1.  henlo"
                       ) == 0);
         free(result);
     }
