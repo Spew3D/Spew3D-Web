@@ -606,8 +606,31 @@ START_TEST(test_markdown_tohtml)
         );
         printf("test_markdown_tohtml result #17: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
-            "<ol><li><p>test</p></li>"
-            "<li><p>test<ol><li><p>testo</p></li></ol></li></ol>"));
+            "<ol start=1><li><p>test</p></li>"
+            "<li><p>test</p>"
+            "<ol start=4><li><p>testo</p></li></ol></li></ol>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "1. abc\n\n     ```H\n     def\n     ```\n\n   ghi\n\n2. j"
+        );
+        printf("test_markdown_tohtml result #18: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ol start=1><li><p>abc</p><pre>"
+            "<code lang='H'>def</code></pre><p>ghi</p></li>"
+            "<li><p>j<p</li></ol>"));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "1. abc\n     ```H\n     def\n     ```\n\n   ghi\n\n2. j"
+        );
+        printf("test_markdown_tohtml result #19: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ol start=1><li><p>abc</p><pre>"
+            "<code lang='H'>def</code></pre><p>ghi</p></li>"
+            "<li><p>j<p</li></ol>"));
         free(result);
     }
 }

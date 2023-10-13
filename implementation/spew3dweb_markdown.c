@@ -294,12 +294,20 @@ static int _spew3d_markdown_process_inline_content(
                 lineinfo[endline + 1].linestart[1] != '`' ||
                 lineinfo[endline + 1].linestart[2] != '`'))) &&
             (_m2htmlline_line_get_next_line_heading_strength(
-                lineinfo, lineinfofill, endline + 1) >= 0))
+                lineinfo, lineinfofill, endline + 1) >= 0) &&
+            (_m2htmlline_start_list_number_len(
+                lineinfo, endline + 1, NULL) <= 0))
         endline += 1;
+    /*printf("_spew3d_markdown_process_inline_content on "
+        "'%s' line range %d to %d\n",
+        lineinfo[startline].linestart + lineinfo[startline].indentlen,
+        startline, endline);*/
     char fnestings[_S3D_MD_MAX_FORMAT_NESTING];
     int fnestingsdepth = 0;
     size_t iline = startline;
     while (iline <= endline) {
+        /*printf("_spew3d_markdown_process_inline_content "
+            "processing line %d\n", iline);*/
         if (iline > startline) {
             if (!INSC(' ')) {
                 errorquit: ;
@@ -812,6 +820,30 @@ S3DEXP char *spew3dweb_markdown_MarkdownBytesToAnchor(
     return lowercaseresult;
 }
 
+static int _line_start_like_list_entry(
+        _markdown_lineinfo *lineinfo, int lineindex,
+        int *out_numentrylen, int *out_number
+        ) {
+    int _numentryvalue = 0;
+    int _numentrylen = 0;
+    int i = lineindex;
+    if (lineinfo[i].indentedcontentlen >= 2 &&
+            (((
+            lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
+            lineinfo[i].linestart[lineinfo[i].indentlen] == '>' ||
+            lineinfo[i].linestart[lineinfo[i].indentlen] == '*') &&
+            lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ') ||
+            (_numentrylen = _m2htmlline_start_list_number_len(
+                lineinfo, i, &_numentryvalue
+            )) > 0
+            )) {
+        if (out_number) *out_number = _numentryvalue;
+        if (out_numentrylen) *out_numentrylen = _numentrylen;
+        return 1;
+    }
+    return 0;
+}
+
 S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         const char *uncleaninput, size_t uncleaninputlen,
         s3dw_markdown_tohtmloptions *options,
@@ -945,6 +977,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
     int nestingsdepth = 0;
     int insidecodeindent = -1;
     int lastnonemptynoncodeindent = 0;
+    int enteredlistinlineidx = -1;
     i = 0;
     while (i <= lineinfofill) {
         /*{
@@ -961,8 +994,39 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         }*/
         char currentlinefoundbullet = '\0';
         int currentlineindentafterbullet = 0;
-        int enteredlistinthisline = 0;
-        if ((lineinfo[i].indentlen <= lastnonemptynoncodeindent - 3 ||
+        int enteredlistinthisline = (
+            i == enteredlistinlineidx
+        );
+
+        // First, figure out some basics on our indent:
+        int currentlookslikelistno = 0;
+        int currentlookslikelistnolen = 0;
+        int currentlookslikelist = 0;
+        int currentlookslikeinnerindent = (
+            lineinfo[i].indentlen
+        );
+        assert(currentlookslikeinnerindent >= 0);
+        if (!enteredlistinthisline) {
+            currentlookslikelist = _line_start_like_list_entry(
+                lineinfo, i, &currentlookslikelistnolen,
+                &currentlookslikelistno
+            );
+            if (insidecodeindent > 0 &&
+                    lineinfo[i].indentlen >= insidecodeindent) {
+                currentlookslikelist = 0;
+                currentlookslikelistno = 0;
+                currentlookslikelistnolen = 0;
+            }
+            currentlookslikeinnerindent += (
+                (!currentlookslikelist) ? 0 : (
+                    (currentlookslikelistnolen > 0) ? 4 : 2)
+            );
+            assert(currentlookslikeinnerindent >= 0);
+        } else {
+            currentlookslikelist = 1;
+        }
+
+        if ((currentlookslikeinnerindent <= lastnonemptynoncodeindent - 3 ||
                 (insidecodeindent > 0 &&
                 lineinfo[i].indentlen <= insidecodeindent - 4)) &&
                 (lineinfo[i].indentedcontentlen > 0 ||
@@ -990,7 +1054,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         return NULL;
                     }
                 } else if (nestingstypes[di] == '1') {
-                    if (!INS("</ol>\n"))
+                    if (!INS("</li></ol>\n"))
                         goto errorquit;
                 } else if (nestingstypes[di] == '>') {
                     if (!INS("</blockquote>\n"))
@@ -1005,8 +1069,6 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
         int potentialtablecells = 0;
         if (insidecodeindent < 0 && i < lineinfofill) {
             // Check for everything allowed outside of a code block:
-            int _numentrylen = -1;
-            int _numentryvalue = -1;
             if (lineinfo[i].indentlen >=
                         lastnonemptynoncodeindent + 4 &&
                     insidecodeindent < 0) {
@@ -1104,18 +1166,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 if (!INS("</code></pre>"))
                     goto errorquit;
                 continue;
-            } else if (lineinfo[i].indentedcontentlen >= 2 && (((
-                    lineinfo[i].linestart[lineinfo[i].indentlen] == '-' ||
-                    lineinfo[i].linestart[lineinfo[i].indentlen] == '>' ||
-                    lineinfo[i].linestart[lineinfo[i].indentlen] == '*') &&
-                    lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ') ||
-                    (_numentrylen = _m2htmlline_start_list_number_len(
-                        lineinfo, i, &_numentryvalue
-                    )) > 0
-                    )) {
+            } else if (!enteredlistinthisline && currentlookslikelist) {
                 // Start of a list entry!
                 char bullettype = (
-                    (_numentrylen > 0 ? '1' :
+                    (currentlookslikelistnolen > 0 ? '1' :
                     lineinfo[i].linestart[lineinfo[i].indentlen])
                 );
                 currentlinefoundbullet = bullettype;
@@ -1137,6 +1191,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     nestingsdepth += 1;
                     assert(nestingsdepth >= listbasenesting);
                     enteredlistinthisline = 1;
+                    enteredlistinlineidx = i;
                     assert(bullettype != 0);
                     nestingstypes[nestingsdepth - 1] = bullettype;
                     if (bullettype == '>') {
@@ -1147,7 +1202,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                             goto errorquit;
                         char startval[16];
                         snprintf(startval, sizeof(startval) - 1,
-                            "%d", _numentryvalue);
+                            "%d", currentlookslikelistno);
                         if (!INS(startval))
                             goto errorquit;
                         if (!INS(">"))
@@ -1164,8 +1219,12 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     if (!INS("<li>"))
                         goto errorquit;
                 }
+                int oldindentlen = lineinfo[i].indentlen;
+                assert(oldindentlen <= currentlineindentafterbullet);
                 lineinfo[i].indentlen = currentlineindentafterbullet;
-                lineinfo[i].indentedcontentlen -= 2;
+                lineinfo[i].indentedcontentlen -= (
+                    currentlineindentafterbullet - oldindentlen
+                );
                 // No i += 1 increase here! We want to process
                 // the line again for list item content:
                 continue;
