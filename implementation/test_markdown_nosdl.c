@@ -654,6 +654,17 @@ START_TEST(test_markdown_tohtml)
             ));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "abc\n    def ![](p.png)"
+        );
+        printf("test_markdown_tohtml result #21: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p>abc</p>"
+            "<pre><code>def ![](p.png)</code></pre>"
+            ));
+        free(result);
+    }
 }
 END_TEST
 
