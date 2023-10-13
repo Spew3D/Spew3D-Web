@@ -293,7 +293,7 @@ static int _spew3d_markdown_process_inline_content(
             (LINEC(endline + 1, 0) != '#' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
                 LINEC(endline + 1, 1) != '#' &&
-                LINEC(endline + 1, 2) != ' ')) &&
+                LINEC(endline + 1, 1) != ' ')) &&
             (LINEC(endline + 1, 0) != '`' || (
                 lineinfo[endline + 1].indentedcontentlen < 3 && (
                 LINEC(endline + 1, 1) != '`' ||
@@ -1251,15 +1251,18 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     i2 += 1;
                 }
                 if (headingtype > 6) headingtype = 6;
-                if (i2 < lineinfo[i].indentedcontentlen && (
+                if (i2 < lineinfo[i].indentlen +
+                        lineinfo[i].indentedcontentlen && (
                         lineinfo[i].linestart[i2] == ' ' ||
                         lineinfo[i].linestart[i2] == '\t')) {
-                    while (i2 < lineinfo[i].indentedcontentlen && (
+                    while (i2 < lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen && (
                             lineinfo[i].linestart[i2] == ' ' ||
                             lineinfo[i].linestart[i2] == '\t')) {
                         i2 += 1;
                     }
-                    if (i2 < lineinfo[i].indentedcontentlen &&
+                    if (i2 < lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen &&
                             lineinfo[i].linestart[i2] != '#') {
                         // This is indeed a heading. Process insides:
                         int doanchor = 0;

@@ -642,6 +642,18 @@ START_TEST(test_markdown_tohtml)
             "<li><p>j</p></li></ol>"));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "1. abc\n   # oops"
+        );
+        printf("test_markdown_tohtml result #20: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ol start=1><li><p>abc</p>"
+            "<h1><a name='oops' href='#oops'>oops</a></h1>"
+            "</li></ol>"
+            ));
+        free(result);
+    }
 }
 END_TEST
 
