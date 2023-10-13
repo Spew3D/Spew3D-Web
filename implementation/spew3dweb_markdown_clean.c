@@ -1153,6 +1153,7 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 i2 += 1;
             }
             i2 += 1;
+
             // To verify, find the end of our inline code.
             size_t codestart = i2;
             size_t codeend = 0;
@@ -1199,28 +1200,29 @@ S3DHID ssize_t _internal_spew3dweb_markdown_AddInlineAreaClean(
                 }
                 i2 += 1;
             }
-            if (codeend > 0) {  // Valid inline code:
+            if (codeend > 0 &&
+                    codeend - codestart > 0) {  // Valid inline code:
+                assert(input[i] == '`');
+
                 if (!INSREP("`", ticks))
                     goto errorquit;
-                if (codeend - codestart > 0) {
-                    int dosquash = opt_squashmultiline ||
-                        opt_forcelinksoneline;
-                    int dofixindent = !dosquash;
-                    ssize_t result = (
-                        _internal_spew3dweb_markdown_AddInlineAreaClean(
-                            input, codeend, codestart,
-                            &resultchunk, &resultfill, &resultalloc,
-                            origindent, effectiveindent,
-                            1, 1, dosquash, dofixindent,
-                            opt_forcelinksoneline,
-                            opt_escapeunambiguousentities,
-                            opt_allowunsafehtml,
-                            opt_stripcomments,
-                            NULL, NULL));
-                    assert(result == -1 || result == codeend);
-                    if (result < 0)
-                        goto errorquit;
-                }
+                int dosquash = opt_squashmultiline ||
+                    opt_forcelinksoneline;
+                int dofixindent = !dosquash;
+                ssize_t result = (
+                    _internal_spew3dweb_markdown_AddInlineAreaClean(
+                        input, codeend, codestart,
+                        &resultchunk, &resultfill, &resultalloc,
+                        origindent, effectiveindent,
+                        1, 1, dosquash, dofixindent,
+                        opt_forcelinksoneline,
+                        opt_escapeunambiguousentities,
+                        opt_allowunsafehtml,
+                        opt_stripcomments,
+                        NULL, NULL));
+                assert(result == -1 || result == codeend);
+                if (result < 0)
+                    goto errorquit;
                 if (!INSREP("`", ticks))
                     goto errorquit;
                 i = i2 + ticks;
@@ -2154,6 +2156,29 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
         }
         if (c == '`' && i + 2 < inputlen && !currentlineiscode &&
                 input[i + 1] == '`' && input[i + 2] == '`') {
+            // Since we might be inside a list entry or block where
+            // orig indent will usually be adjusted to the block start
+            // but we want to place our code relative to the backticks,
+            // find actual backtick indent:
+            assert(input[i] == '`');
+            int referenceindent = currentlineorigindent;
+            {
+                int candidate_backtick_indent = 0;
+                int i3 = i;
+                while (i3 > 0 && (input[i3 - 1] == ' ' ||
+                        input[i3 - 1] == '\t')) {
+                    candidate_backtick_indent += (
+                        input[i3 - 1] == '\t' ? 4 : 1
+                    );
+                    i3 -= 1;
+                }
+                if (candidate_backtick_indent > 0 &&
+                        (i3 <= 0 || (
+                        input[i3 - 1] == '\n' ||
+                        input[i3 - 1] == '\r')))
+                    referenceindent = candidate_backtick_indent;
+            }
+
             // Parse ``` code block.
             int ticks = 3;
             i += 3;
@@ -2268,14 +2293,14 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
             int addindentonwrite = 0;
             if (smallestinnerindentseen >= 0 &&
                     smallestinnerindentseen <
-                    currentlineorigindent)
+                    referenceindent)
                 addindentonwrite = (
-                    currentlineorigindent -
+                    referenceindent -
                     smallestinnerindentseen
                 );
             addindentonwrite += (
                 currentlineeffectiveindent -
-                currentlineorigindent
+                referenceindent
             );
             size_t i2 = insidecontentsstart;
             if (!firstinnerlineempty) {
@@ -2300,13 +2325,14 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                         else line_orig_indent += 4;
                         i2 += 1;
                     }
-                    if (i2 >= insidecontentsend) {
-                        assert(lastinnerlineisblank);
+                    if (i2 > insidecontentsend) {
+                        // We must indent this to our final effective indent.
+                        if (!INSREP(" ", currentlineeffectiveindent))
+                            return NULL;
                         break;
                     }
-                    int line_want_indent = (
-                        line_orig_indent + addindentonwrite
-                    );
+                    int line_want_indent = line_orig_indent;
+                    line_want_indent += addindentonwrite;
                     if (line_want_indent < 0)
                         line_want_indent = 0;
                     if (!INSREP(" ", line_want_indent))

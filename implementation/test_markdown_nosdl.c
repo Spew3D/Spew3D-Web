@@ -351,7 +351,7 @@ START_TEST(test_markdown_clean)
             "1. abc\n\n     ```H\n     def\n     ```"
         );
         printf("test_markdown_clean result #30: <<%s>>\n", result);
-        assert(strcmp(result, "1.  abc\n\n    ```\n    def\n    ```"
+        assert(strcmp(result, "1.  abc\n\n    ```H\n    def\n    ```"
                       ) == 0);
         free(result);
     }
@@ -628,7 +628,7 @@ START_TEST(test_markdown_tohtml)
         assert(_s3dw_check_html_same(result,
             "<ol start=1><li><p>abc</p><pre>"
             "<code lang='H'>def</code></pre><p>ghi</p></li>"
-            "<li><p>j<p</li></ol>"));
+            "<li><p>j</p></li></ol>"));
         free(result);
     }
     {
@@ -639,7 +639,7 @@ START_TEST(test_markdown_tohtml)
         assert(_s3dw_check_html_same(result,
             "<ol start=1><li><p>abc</p><pre>"
             "<code lang='H'>def</code></pre><p>ghi</p></li>"
-            "<li><p>j<p</li></ol>"));
+            "<li><p>j</p></li></ol>"));
         free(result);
     }
 }

@@ -1132,7 +1132,8 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 while (i < lineinfofill) {
                     j = lineinfo[i].indentlen;
                     int _foundticks = 0;
-                    while (j < lineinfo[i].indentedcontentlen &&
+                    while (j < lineinfo[i].indentlen +
+                            lineinfo[i].indentedcontentlen &&
                             lineinfo[i].linestart[j] == '`') {
                         _foundticks += 1;
                         j += 1;
