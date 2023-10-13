@@ -706,7 +706,7 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
                 in_list_logical_nesting_depth - 1
             ]) {
         // Special case, since we're still further indented
-        // than one layer "outside" of ours and glue to a
+        // than one layer "outside" of ours and glued to a
         // previous list entry with no empty line,
         // continue the list entry.
         assert(indent_depth > 0);
@@ -730,7 +730,12 @@ S3DHID void _internal_spew3dweb_markdown_IsListOrCodeIndentEx(
                 list_nesting = current_depth;
                 break;
             } else if (k >= in_list_logical_nesting_depth - 1) {
-                list_nesting = in_list_logical_nesting_depth + 1;
+                // Note: we're indented deeper than the last outer
+                // list entry, but since we're not indented deep
+                // enough for a code block (4) and this is not a list
+                // item that can start a nested deeper list, stick
+                // to our last deepest depth.
+                list_nesting = in_list_logical_nesting_depth;
                 break;
             }
             k += 1;

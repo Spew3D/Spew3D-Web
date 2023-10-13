@@ -346,6 +346,15 @@ START_TEST(test_markdown_clean)
                       ) == 0);
         free(result);
     }
+    {
+        result = spew3dweb_markdown_Clean(
+            "1. abc\n\n     ```H\n     def\n     ```"
+        );
+        printf("test_markdown_clean result #30: <<%s>>\n", result);
+        assert(strcmp(result, "1.  abc\n\n    ```\n    def\n    ```"
+                      ) == 0);
+        free(result);
+    }
 }
 END_TEST
 
