@@ -269,35 +269,41 @@ static int _spew3d_markdown_process_inline_content(
     size_t inside_imgtitle_ends_at = 0;
     size_t past_image_idx = 0;
 
+    #define LINEC(l, c) \
+        lineinfo[l].linestart[\
+            lineinfo[l].indentlen + c\
+        ]
+
     while (endline + 1 < endbeforeline &&
             !as_code &&
             lineinfo[endline + 1].indentlen ==
             lineinfo[startline].indentlen &&
             lineinfo[endline + 1].indentedcontentlen > 0 &&
-            (lineinfo[endline + 1].linestart[0] != '-' || (
+            (LINEC(endline + 1, 0) != '-' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                lineinfo[endline + 1].linestart[1] != '-' &&
-                lineinfo[endline + 1].linestart[2] != ' ')) &&
-            (lineinfo[endline + 1].linestart[0] != '*' || (
+                LINEC(endline + 1, 1)  != '-' &&
+                LINEC(endline + 1, 2) != ' ')) &&
+            (LINEC(endline + 1, 0) != '*' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                lineinfo[endline + 1].linestart[1] != '*' &&
-                lineinfo[endline + 1].linestart[2] != ' ')) &&
-            (lineinfo[endline + 1].linestart[0] != '>' || (
+                LINEC(endline + 1, 1) != '*' &&
+                LINEC(endline + 1, 2) != ' ')) &&
+            (LINEC(endline + 1, 0) != '>' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                lineinfo[endline + 1].linestart[1] != ' ')) &&
-            (lineinfo[endline + 1].linestart[0] != '#' || (
+                LINEC(endline + 1, 1) != ' ')) &&
+            (LINEC(endline + 1, 0) != '#' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                lineinfo[endline + 1].linestart[1] != '#' &&
-                lineinfo[endline + 1].linestart[2] != ' ')) &&
-            (lineinfo[endline + 1].linestart[0] != '`' || (
+                LINEC(endline + 1, 1) != '#' &&
+                LINEC(endline + 1, 2) != ' ')) &&
+            (LINEC(endline + 1, 0) != '`' || (
                 lineinfo[endline + 1].indentedcontentlen < 3 && (
-                lineinfo[endline + 1].linestart[1] != '`' ||
-                lineinfo[endline + 1].linestart[2] != '`'))) &&
+                LINEC(endline + 1, 1) != '`' ||
+                LINEC(endline + 1, 2) != '`'))) &&
             (_m2htmlline_line_get_next_line_heading_strength(
                 lineinfo, lineinfofill, endline + 1) >= 0) &&
             (_m2htmlline_start_list_number_len(
                 lineinfo, endline + 1, NULL) <= 0))
         endline += 1;
+    #undef LINEC
     /*printf("_spew3d_markdown_process_inline_content on "
         "'%s' line range %d to %d\n",
         lineinfo[startline].linestart + lineinfo[startline].indentlen,
