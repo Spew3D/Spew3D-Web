@@ -665,6 +665,17 @@ START_TEST(test_markdown_tohtml)
             ));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "- ![](p.png)\n  **test**"
+        );
+        printf("test_markdown_tohtml result #22: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ul><li><p><img src='p.png'/> "
+            "<strong>test</strong></p></li></ul>"
+            ));
+        free(result);
+    }
 }
 END_TEST
 

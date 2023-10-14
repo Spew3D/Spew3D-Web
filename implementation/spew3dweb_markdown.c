@@ -281,12 +281,18 @@ static int _spew3d_markdown_process_inline_content(
             lineinfo[endline + 1].indentedcontentlen > 0 &&
             (LINEC(endline + 1, 0) != '-' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                LINEC(endline + 1, 1)  != '-' &&
-                LINEC(endline + 1, 2) != ' ')) &&
+                LINEC(endline + 1, 1) != '-' &&
+                LINEC(endline + 1, 1) != ' ' &&
+                LINEC(endline + 1, 1) != '\t')) &&
             (LINEC(endline + 1, 0) != '*' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
-                LINEC(endline + 1, 1) != '*' &&
-                LINEC(endline + 1, 2) != ' ')) &&
+                LINEC(endline + 1, 1) != ' ' &&
+                LINEC(endline + 1, 1) != '\t' &&
+                (LINEC(endline + 1, 1) != '*' ||
+                 lineinfo[endline + 1].indentedcontentlen > 2 &&
+                 LINEC(endline + 1, 2) != '*' &&
+                 LINEC(endline + 1, 2) != ' ' &&
+                 LINEC(endline + 1, 2) != '\t'))) &&
             (LINEC(endline + 1, 0) != '>' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
                 LINEC(endline + 1, 1) != ' ')) &&
