@@ -270,9 +270,9 @@ static int _spew3d_markdown_process_inline_content(
     size_t past_image_idx = 0;
 
     #define LINEC(l, c) \
-        lineinfo[l].linestart[\
+        (lineinfo[l].linestart[\
             lineinfo[l].indentlen + c\
-        ]
+        ])
 
     while (endline + 1 < endbeforeline &&
             !as_code &&
@@ -299,11 +299,12 @@ static int _spew3d_markdown_process_inline_content(
             (LINEC(endline + 1, 0) != '#' || (
                 lineinfo[endline + 1].indentedcontentlen > 1 &&
                 LINEC(endline + 1, 1) != '#' &&
-                LINEC(endline + 1, 1) != ' ')) &&
+                LINEC(endline + 1, 1) != ' ' &&
+                LINEC(endline + 1, 1) != '\t')) &&
             (LINEC(endline + 1, 0) != '`' || (
-                lineinfo[endline + 1].indentedcontentlen < 3 && (
+                lineinfo[endline + 1].indentedcontentlen < 3 ||
                 LINEC(endline + 1, 1) != '`' ||
-                LINEC(endline + 1, 2) != '`'))) &&
+                LINEC(endline + 1, 2) != '`')) &&
             (_m2htmlline_line_get_next_line_heading_strength(
                 lineinfo, lineinfofill, endline + 1) >= 0) &&
             (_m2htmlline_start_list_number_len(
