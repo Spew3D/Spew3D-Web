@@ -693,8 +693,8 @@ START_TEST(test_markdown_tohtml)
         );
         printf("test_markdown_tohtml result #23: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
-            "<p>abc <b>def "
-            "<code>hello()</code> test</b></p>"
+            "<p>abc <strong>def "
+            "<code>hello()</code> test</strong></p>"
             ));
         free(result);
     }

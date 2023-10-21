@@ -422,7 +422,7 @@ static int _spew3d_markdown_process_inline_content(
 
                         int _innerfmt, _innercanopen, _innercanclose;
                         _innerfmt = _md2html_get_inline_fmt_type(
-                            linebuf2, ipastend, i2,
+                            linebuf2, i2pastend, i2,
                             &_innercanopen, &_innercanclose
                         );
                         // Special case: forbid closing right after open:
