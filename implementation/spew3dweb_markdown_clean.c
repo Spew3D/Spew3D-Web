@@ -2309,6 +2309,9 @@ S3DHID char *_internal_spew3dweb_markdown_CleanByteBufEx(
                 if (!INSREP(" ", currentlineeffectiveindent))
                     return NULL;
             }
+            if (insidecontentsend < 0 ||
+                    insidecontentsend > inputlen)
+                insidecontentsend = inputlen;
             while (i2 < insidecontentsend) {
                 if (input[i2] == '\r' || input[i2] == '\n') {
                     if (input[i2] == '\r' &&
