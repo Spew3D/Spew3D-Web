@@ -691,10 +691,21 @@ START_TEST(test_markdown_tohtml)
         result = spew3dweb_markdown_ToHTML(
             "abc **def\n`hello()` test**"
         );
-        printf("test_markdown_tohtml result #23: <<%s>>\n", result);
+        printf("test_markdown_tohtml result #24: <<%s>>\n", result);
         assert(_s3dw_check_html_same(result,
             "<p>abc <strong>def "
             "<code>hello()</code> test</strong></p>"
+            ));
+        free(result);
+    }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "abc\n```a\nabc"
+        );
+        printf("test_markdown_tohtml result #25: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<p>abc</p>"
+            "<pre><code lang='a'>abc</code></pre>"
             ));
         free(result);
     }
