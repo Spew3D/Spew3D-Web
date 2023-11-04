@@ -1078,6 +1078,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                 nestreduce -= 1;
                 nestingsdepth -= 1;
             }
+            // Update this even if we are starting a code line,
+            // since we're not INSIDE the code block YET and
+            // this is clearly the new reference to adhere to:
+            lastnonemptynoncodeindent = referenceindent;
         }
         int potentialtablecells = 0;
         if (insidecodeindent < 0 && i < lineinfofill) {

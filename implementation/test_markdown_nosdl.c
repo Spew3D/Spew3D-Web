@@ -709,6 +709,17 @@ START_TEST(test_markdown_tohtml)
             ));
         free(result);
     }
+    {
+        result = spew3dweb_markdown_ToHTML(
+            "- abc\n\n```\nabc\n```\n"
+        );
+        printf("test_markdown_tohtml result #26: <<%s>>\n", result);
+        assert(_s3dw_check_html_same(result,
+            "<ul><li><p>abc</p></li></ul>\n"
+            "<pre><code>abc\n</code></pre>"
+            ));
+        free(result);
+    }
 }
 END_TEST
 
