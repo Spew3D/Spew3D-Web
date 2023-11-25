@@ -121,9 +121,11 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
 
 /// Normalize a given remote URI string that was already URI encoded.
 ///
-/// @param ensure_absolute_file_paths If the URI string represents
-///     `"file://"` URI but with a relative path, resolve to an absolute
-///     path given the working directory.
+/// @param ensure_absolute_file_paths If set to 1
+///     and the URI string represents `"file://"` URI but with a
+///     relative path, resolve to an absolute path based on the
+///     current working directory. If set to 0, don't change
+///     relative paths.
 /// @returns The normalized URI string, or NULL if out of memory.
 S3DEXP char *s3d_uri_Normalize(
     const char *uristr, int absolutefilepaths
