@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
+/* Copyright (c) 2023-2024, ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -70,7 +70,7 @@ static int _getlinelen(const char *start, size_t max) {
     return linelen;
 }
 
-static int _m2htmlline_line_get_next_line_heading_strength(
+static int _m2html_GetLineUnderlineAfterStrength(
         _markdown_lineinfo *lineinfo,
         size_t linefill, size_t lineindex
         ) {
@@ -105,7 +105,7 @@ static int _m2htmlline_line_get_next_line_heading_strength(
     return ((headingchar == '=') ? 1 : 2);
 }
 
-static int _m2htmlline_start_list_number_len(
+static int _m2html_GetListBulletNumberLen(
         _markdown_lineinfo *lineinfo, int lineindex,
         int *numval
         ) {
@@ -142,7 +142,7 @@ static int _md2html_fmt_type_len(int type) {
     return (type == _FORMAT_TYPE_ASTERISK1 ? 1 : 2);
 }
 
-static char _md2html_get_inline_fmt_type(
+static char _md2html_GetInlineFormattingTypeFromChar(
         const char *linebuf, size_t ipastend, size_t i,
         int *out_canopen, int *out_canclose
         ) {
@@ -194,7 +194,7 @@ static char _md2html_get_inline_fmt_type(
     return 0;
 }
 
-static int _m2html_check_line_has_link(
+static int _m2html_CheckLineHasLink(
         _markdown_lineinfo *lineinfo, size_t linei, size_t i
         ) {
     size_t starti = i;
@@ -219,7 +219,7 @@ static int _m2html_check_line_has_link(
     return 0;
 }
 
-static int _is_guaranteed_ext_link(
+static int _m2html_IsGuaranteedExternalLink(
         const char *linkbytes, size_t byteslen
         ) {
     size_t i = 0;
@@ -305,9 +305,9 @@ static int _spew3d_markdown_process_inline_content(
                 lineinfo[endline + 1].indentedcontentlen < 3 ||
                 LINEC(endline + 1, 1) != '`' ||
                 LINEC(endline + 1, 2) != '`')) &&
-            (_m2htmlline_line_get_next_line_heading_strength(
+            (_m2html_GetLineUnderlineAfterStrength(
                 lineinfo, lineinfofill, endline + 1) >= 0) &&
-            (_m2htmlline_start_list_number_len(
+            (_m2html_GetListBulletNumberLen(
                 lineinfo, endline + 1, NULL) <= 0))
         endline += 1;
     #undef LINEC
@@ -366,7 +366,7 @@ static int _spew3d_markdown_process_inline_content(
             if (fnestingsdepth < _S3D_MD_MAX_FORMAT_NESTING &&
                     !as_code &&
                     inside_imgtitle_ends_at == 0 &&
-                    (_fmttype = _md2html_get_inline_fmt_type(
+                    (_fmttype = _md2html_GetInlineFormattingTypeFromChar(
                         linebuf, ipastend, i,
                         &_fmtcanopen, &_fmtcanclose
                     )) > 0 && _fmtcanopen &&
@@ -421,10 +421,11 @@ static int _spew3d_markdown_process_inline_content(
                         }
 
                         int _innerfmt, _innercanopen, _innercanclose;
-                        _innerfmt = _md2html_get_inline_fmt_type(
-                            linebuf2, i2pastend, i2,
-                            &_innercanopen, &_innercanclose
-                        );
+                        _innerfmt =
+                            _md2html_GetInlineFormattingTypeFromChar(
+                                linebuf2, i2pastend, i2,
+                                &_innercanopen, &_innercanclose
+                            );
                         // Special case: forbid closing right after open:
                         if (iline2 == iline &&
                                 i2 == i + _md2html_fmt_type_len(_fmttype))
@@ -496,7 +497,7 @@ static int _spew3d_markdown_process_inline_content(
                 continue;
             } else if (fnestingsdepth > 0 && !as_code &&
                     inside_imgtitle_ends_at == 0 &&
-                    (_fmttype = _md2html_get_inline_fmt_type(
+                    (_fmttype = _md2html_GetInlineFormattingTypeFromChar(
                         linebuf, ipastend, i,
                         &_fmtcanopen, &_fmtcanclose
                     )) > 0 && _fmtcanclose &&
@@ -679,7 +680,7 @@ static int _spew3d_markdown_process_inline_content(
                             goto errorquit;
                     int add_rel_noopener = 0;
                     int add_target_blank = 0;
-                    if (_is_guaranteed_ext_link(
+                    if (_m2html_IsGuaranteedExternalLink(
                             linebuf + url_start, url_len
                             )) {
                         if (!options->externallinks_no_target_blank)
@@ -846,7 +847,7 @@ static int _line_start_like_list_entry(
             lineinfo[i].linestart[lineinfo[i].indentlen] == '>' ||
             lineinfo[i].linestart[lineinfo[i].indentlen] == '*') &&
             lineinfo[i].linestart[lineinfo[i].indentlen + 1] == ' ') ||
-            (_numentrylen = _m2htmlline_start_list_number_len(
+            (_numentrylen = _m2html_GetListBulletNumberLen(
                 lineinfo, i, &_numentryvalue
             )) > 0
             )) {
@@ -1054,6 +1055,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             }
             int nestreduce = (lastnonemptynoncodeindent -
                 referenceindent) / 4;
+            assert(nestreduce >= 0);
             while (nestreduce > 0) {
                 assert(nestingsdepth >= nestreduce);
                 const int di = nestingsdepth - 1;
@@ -1073,7 +1075,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                     if (!INS("</blockquote>\n"))
                         goto errorquit;
                 } else {
-                    assert(0);  // Should never happen.
+                    assert(0 && "Should never happen.");
                 }
                 nestreduce -= 1;
                 nestingsdepth -= 1;
@@ -1278,7 +1280,7 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         // This is indeed a heading. Process insides:
                         int doanchor = 0;
                         if (!options->disable_heading_anchors) {
-                            doanchor = !_m2html_check_line_has_link(
+                            doanchor = !_m2html_CheckLineHasLink(
                                 lineinfo, i, 0
                             );
                         }
@@ -1427,13 +1429,13 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             // Add in regular inline content:
             lastnonemptynoncodeindent = lineinfo[i].indentlen;
             int headingtype = (
-                _m2htmlline_line_get_next_line_heading_strength(
+                _m2html_GetLineUnderlineAfterStrength(
                     lineinfo, lineinfofill, i
                 ));
             int doanchor = 0;
             if (headingtype > 0) {
                 if (!options->disable_heading_anchors)
-                    doanchor = !_m2html_check_line_has_link(
+                    doanchor = !_m2html_CheckLineHasLink(
                         lineinfo, i, 0
                     );
                 if (!INS("<h"))
