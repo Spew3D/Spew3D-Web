@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
+/* Copyright (c) 2023-2024, ellie/@ell1e & Spew3D Web Team (see AUTHORS.md).
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -78,6 +78,7 @@ static char *_internal_s3d_uri_ParsePath(
                 &unescaped_path[i + 1], &unescaped_path[i + 3],
                 strlen(unescaped_path) - (i + 3) + 1
             );
+            maxlen -= 2;
         }
         i++;
     }
@@ -287,13 +288,15 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
             (memcmp(part, "://", strlen("://")) == 0 ||
              memcmp(part, ":\\\\", strlen(":\\\\")) == 0)) {
         // This is an URI with a protocol in front:
-        result->protocol = malloc(part - part_start + 1);
+        assert(result->protocol == NULL);
+        utf8_str_to_lowercase(
+            part_start, part - part_start,
+            NULL, &result->protocol, NULL
+        );
         if (!result->protocol) {
             s3d_uri_Free(result);
             return NULL;
         }
-        memcpy(result->protocol, part_start, part - part_start);
-        result->protocol[part - part_start] = '\0';
         part += 3;
         lastdotindex = -1;
         part_start = part;
@@ -387,13 +390,15 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
                 result->protocol = NULL;
             }
         }
-        result->host = malloc(part - part_start + 1);
+        assert(result->host == NULL);
+        utf8_str_to_lowercase(
+            part_start, part - part_start,
+            NULL, &result->host, NULL
+        );
         if (!result->host) {
             s3d_uri_Free(result);
             return NULL;
         }
-        memcpy(result->host, part_start, part - part_start);
-        result->host[part - part_start] = '\0';
         part++;
         part_start = part;
         lastdotindex = -1;
@@ -418,13 +423,15 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
             (!_clearlynotremotehostname(part_start, part - part_start) &&
             s3dstrcasecmp(default_relative_path_protocol, "file") != 0))) {
         // We've had a protocol in front, so first slash ends host:
-        result->host = malloc(part - part_start + 1);
+        assert(result->host == NULL);
+        utf8_str_to_lowercase(
+            part_start, part - part_start,
+            NULL, &result->host, NULL
+        );
         if (!result->host) {
             s3d_uri_Free(result);
             return NULL;
         }
-        memcpy(result->host, part_start, part - part_start);
-        result->host[part - part_start] = '\0';
         part_start = part;
         lastdotindex = -1;
         if (result->protocol == NULL) {
@@ -454,7 +461,7 @@ S3DHID s3duri *_internal_s3d_uri_ParseEx(
         }
     }
 
-    // Case if no guess, a random relative thing. Use default then:
+    // If no guess, interpret as random relative thing with the default:
     if (!result->protocol && !result->host && result->port < 0) {
         result->protocol = strdup(default_relative_path_protocol);
         if (!result->protocol) {

@@ -79,7 +79,7 @@ START_TEST (test_uri_parse)
             "LICENSE.md", "https"
         );
         ck_assert_str_eq(result->protocol, "https");
-        ck_assert_str_eq(result->host, "LICENSE.md");
+        ck_assert_str_eq(result->host, "license.md");
         ck_assert_str_eq(result->resource, "/");
         s3d_uri_Free(result);
     }
@@ -107,6 +107,25 @@ START_TEST (test_uri_fromfilepath)
         ck_assert_str_eq(result->resource, "LICENSE%2520.md");
         s3d_uri_Free(result);
     }
+}
+END_TEST
+
+START_TEST (test_uri_normalize)
+{
+    char *s1 = s3d_uri_Normalize(
+        "hTtPs://tEsT.com/abc%20def /%2Fabc?test%2F", 0
+    );
+    ck_assert_str_eq(
+        s1, "https://test.com/abc%20def%20//abc?test/"
+    );
+    free(s1);
+    char *s2 = s3d_uri_Normalize(
+        "hTtPs://tEsT.com/abc//dE", 0
+    );
+    ck_assert_str_eq(
+        s2, "https://test.com/abc//dE"
+    );
+    free(s2);
 }
 END_TEST
 
@@ -143,5 +162,5 @@ START_TEST (test_uri_fileextension)
 END_TEST
 
 TESTS_MAIN(test_uri_parse, test_uri_fromfilepath,
-    test_uri_fileextension)
+    test_uri_fileextension, test_uri_normalize)
 
