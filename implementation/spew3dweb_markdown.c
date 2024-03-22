@@ -70,7 +70,7 @@ static int _getlinelen(const char *start, size_t max) {
     return linelen;
 }
 
-static int _m2html_GetLineUnderlineAfterStrength(
+static int _spew3dweb_markdown_GetLineHeadingUnderlineStrength(
         _markdown_lineinfo *lineinfo,
         size_t linefill, size_t lineindex
         ) {
@@ -194,7 +194,7 @@ static char _md2html_GetInlineFormattingTypeFromChar(
     return 0;
 }
 
-static int _m2html_CheckLineHasLink(
+static int _spew3dweb_markdown_CheckLineHasProperLink(
         _markdown_lineinfo *lineinfo, size_t linei, size_t i
         ) {
     size_t starti = i;
@@ -305,7 +305,7 @@ static int _spew3d_markdown_process_inline_content(
                 lineinfo[endline + 1].indentedcontentlen < 3 ||
                 LINEC(endline + 1, 1) != '`' ||
                 LINEC(endline + 1, 2) != '`')) &&
-            (_m2html_GetLineUnderlineAfterStrength(
+            (_spew3dweb_markdown_GetLineHeadingUnderlineStrength(
                 lineinfo, lineinfofill, endline + 1) >= 0) &&
             (_m2html_GetListBulletNumberLen(
                 lineinfo, endline + 1, NULL) <= 0))
@@ -1280,8 +1280,10 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
                         // This is indeed a heading. Process insides:
                         int doanchor = 0;
                         if (!options->disable_heading_anchors) {
-                            doanchor = !_m2html_CheckLineHasLink(
-                                lineinfo, i, 0
+                            doanchor = (
+                                !_spew3dweb_markdown_CheckLineHasProperLink(
+                                    lineinfo, i, 0
+                                )
                             );
                         }
                         if (!INS("<h"))
@@ -1429,13 +1431,13 @@ S3DEXP char *spew3dweb_markdown_ByteBufToHTML(
             // Add in regular inline content:
             lastnonemptynoncodeindent = lineinfo[i].indentlen;
             int headingtype = (
-                _m2html_GetLineUnderlineAfterStrength(
+                _spew3dweb_markdown_GetLineHeadingUnderlineStrength(
                     lineinfo, lineinfofill, i
                 ));
             int doanchor = 0;
             if (headingtype > 0) {
                 if (!options->disable_heading_anchors)
-                    doanchor = !_m2html_CheckLineHasLink(
+                    doanchor = !_spew3dweb_markdown_CheckLineHasProperLink(
                         lineinfo, i, 0
                     );
                 if (!INS("<h"))

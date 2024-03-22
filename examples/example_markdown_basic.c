@@ -34,7 +34,7 @@ license, see accompanied LICENSE.md.
 #include <spew3dweb.h>
 #include <stdio.h>
 
-void main(int argc, const char **argv) {
+int main(int argc, const char **argv) {
 
     printf("Markdown to markdown example:\n");
     char *converted = spew3dweb_markdown_Clean(
@@ -60,5 +60,6 @@ void main(int argc, const char **argv) {
     printf("Result: \n%s\n\n", converted2);
     free(converted2);
 
+    return 0;
 }
 
